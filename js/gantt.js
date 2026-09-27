@@ -273,10 +273,7 @@ export function renderSimulation({ procs, segments, finish, labelText, showPrior
   buildGantt(procs, segments, showPriority, quantumText);
   setNoAnim(true);
   setInstant(0);
-  requestAnimationFrame(() => {
-    setNoAnim(false);
-    startPlayback();
-  });
+  requestAnimationFrame(() => setNoAnim(false));
 }
 
 export function initPlayback() {
@@ -293,11 +290,19 @@ export function initPlayback() {
   });
 
   document.addEventListener('keydown', (e) => {
-    if (e.code !== 'Space') return;
+    if (!['Space', 'ArrowLeft', 'ArrowRight'].includes(e.code)) return;
     const tag = (e.target && e.target.tagName || '').toLowerCase();
     if (['input', 'select', 'textarea', 'button'].includes(tag)) return;
     e.preventDefault();
-    playing ? pausePlayback() : startPlayback();
+    if (e.code === 'Space') {
+      playing ? pausePlayback() : startPlayback();
+    } else if (e.code === 'ArrowLeft') {
+      pausePlayback();
+      setInstant(currentInstant - 1);
+    } else if (e.code === 'ArrowRight') {
+      pausePlayback();
+      setInstant(currentInstant + 1);
+    }
   });
 
   document.querySelectorAll('.view-btn').forEach((btn) => {

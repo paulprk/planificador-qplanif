@@ -184,6 +184,44 @@ h1 {
   color: var(--ink-soft);
 }
 
+.kbd-hint {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.9rem;
+  padding: 0 0.3rem;
+}
+.kbd-hint-label {
+  font-family: var(--font-display);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.kbd-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+}
+.kbd-chip kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.6rem;
+  height: 1.6rem;
+  padding: 0 0.45rem;
+  border-radius: 6px;
+  background: var(--surface);
+  box-shadow: 0 2px 0 var(--line-strong), 0 1px 2px rgba(0, 0, 0, 0.08);
+  font-family: var(--font-display);
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
 .panel {
   background: var(--surface);
   border-radius: 16px;
