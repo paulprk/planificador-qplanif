@@ -1,7 +1,7 @@
 /**
  * Tabla de TR/TE por proceso y las fichas de TPR/TPE del lote.
  * Las explicaciones de cada sigla viven en infopopover.js, detrás del
- * botón "ⓘ" que se agrega junto a cada label.
+ * botón "?" que se agrega junto a cada label.
  */
 export function renderResults(procs, finish) {
   const body = document.getElementById('resultsBody');
@@ -40,7 +40,7 @@ export function renderResults(procs, finish) {
     info.className = 'info-btn';
     info.dataset.infoKey = label.toLowerCase();
     info.setAttribute('aria-label', `Qué es ${label}`);
-    info.textContent = 'ⓘ';
+    info.textContent = '?';
     labRow.append(lab, info);
     const val = document.createElement('span'); val.className = 'value'; val.textContent = value;
     tile.append(labRow, val);
