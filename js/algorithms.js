@@ -147,6 +147,9 @@ export function simRR(procs, quantum) {
   const segments = [];
   const finish = {};
   let completed = 0;
+  const readyLog = [];
+
+  function snap() { readyLog.push({ t: time, queue: queue.slice() }); }
 
   function enqueueArrivalsUpTo(t) {
     while (arrivalPtr < sortedByArrival.length && sortedByArrival[arrivalPtr].arrival <= t) {
@@ -159,6 +162,7 @@ export function simRR(procs, quantum) {
     time = sortedByArrival[0].arrival;
     enqueueArrivalsUpTo(time);
   }
+  snap();
 
   let guard = 0;
   while (completed < procs.length && guard < 100000) {
@@ -170,23 +174,24 @@ export function simRR(procs, quantum) {
       } else {
         break;
       }
-      continue;
-    }
-    const id = queue.shift();
-    const run = Math.min(quantum, rem[id]);
-    const start = time, end = start + run;
-    segments.push({ id, start, end });
-    rem[id] -= run;
-    time = end;
-    enqueueArrivalsUpTo(time);
-    if (rem[id] > 0) {
-      queue.push(id);
     } else {
-      finish[id] = time;
-      completed++;
+      const id = queue.shift();
+      const run = Math.min(quantum, rem[id]);
+      const start = time, end = start + run;
+      segments.push({ id, start, end });
+      rem[id] -= run;
+      time = end;
+      enqueueArrivalsUpTo(time);
+      if (rem[id] > 0) {
+        queue.push(id);
+      } else {
+        finish[id] = time;
+        completed++;
+      }
     }
+    snap();
   }
-  return { segments: mergeSegments(segments), finish };
+  return { segments: mergeSegments(segments), finish, readyLog };
 }
 
 export function simPriRR(procs, quantum) {
@@ -200,6 +205,15 @@ export function simPriRR(procs, quantum) {
   let time = 0;
   let completed = 0;
   let current = null;
+  const readyLog = [];
+
+  function flatQueue() {
+    const keys = Object.keys(queues).map(Number).sort((a, b) => a - b);
+    const out = [];
+    keys.forEach((k) => queues[k].forEach((id) => out.push(id)));
+    return out;
+  }
+  function snap() { readyLog.push({ t: time, queue: flatQueue() }); }
 
   function enqueueArrivalsUpTo(t) {
     while (arrivalPtr < sortedByArrival.length && sortedByArrival[arrivalPtr].arrival <= t) {
@@ -217,6 +231,7 @@ export function simPriRR(procs, quantum) {
 
   if (sortedByArrival.length > 0) time = sortedByArrival[0].arrival;
   enqueueArrivalsUpTo(time);
+  snap();
 
   let guard = 0;
   while (completed < procs.length && guard++ < 200000) {
@@ -226,42 +241,103 @@ export function simPriRR(procs, quantum) {
         if (arrivalPtr < sortedByArrival.length) {
           time = sortedByArrival[arrivalPtr].arrival;
           enqueueArrivalsUpTo(time);
-          continue;
-        } else break;
+        } else {
+          break;
+        }
+      } else {
+        const id = queues[bp].shift();
+        current = { id, prio: bp, quantumLeft: quantum };
       }
-      const id = queues[bp].shift();
-      current = { id, prio: bp, quantumLeft: quantum };
     }
-    const stepStart = time;
-    rem[current.id]--;
-    current.quantumLeft--;
-    time++;
-    segments.push({ id: current.id, start: stepStart, end: time });
-    enqueueArrivalsUpTo(time);
+    if (current !== null) {
+      const stepStart = time;
+      rem[current.id]--;
+      current.quantumLeft--;
+      time++;
+      segments.push({ id: current.id, start: stepStart, end: time });
+      enqueueArrivalsUpTo(time);
 
-    if (rem[current.id] === 0) {
-      finish[current.id] = time;
-      completed++;
-      current = null;
-      continue;
-    }
-    const bp2 = bestPriority();
-    if (bp2 !== null && bp2 < current.prio) {
-      if (!queues[current.prio]) queues[current.prio] = [];
-      queues[current.prio].push(current.id);
-      current = null;
-      continue;
-    }
-    if (current.quantumLeft === 0) {
-      if (queues[current.prio] && queues[current.prio].length > 0) {
-        queues[current.prio].push(current.id);
+      if (rem[current.id] === 0) {
+        finish[current.id] = time;
+        completed++;
         current = null;
       } else {
-        current.quantumLeft = quantum;
+        const bp2 = bestPriority();
+        if (bp2 !== null && bp2 < current.prio) {
+          if (!queues[current.prio]) queues[current.prio] = [];
+          queues[current.prio].push(current.id);
+          current = null;
+        } else if (current.quantumLeft === 0) {
+          if (queues[current.prio] && queues[current.prio].length > 0) {
+            queues[current.prio].push(current.id);
+            current = null;
+          } else {
+            current.quantumLeft = quantum;
+          }
+        }
       }
     }
+    snap();
   }
-  return { segments: mergeSegments(segments), finish };
+  return { segments: mergeSegments(segments), finish, readyLog };
+}
+
+function remainingAt(procs, segments, id, t) {
+  const p = procs.find((pr) => pr.id === id);
+  let executed = 0;
+  segments.forEach((s) => {
+    if (s.id !== id || s.start >= t) return;
+    executed += Math.min(s.end, t) - s.start;
+  });
+  return p.burst - executed;
+}
+
+const READY_SORT_KEY = {
+  fcfs: (p) => [p.arrival, p.order],
+  sjf: (p) => [p.burst, p.arrival, p.order],
+  pri: (p) => [p.priority, p.arrival, p.order],
+  pri_exp: (p) => [p.priority, p.arrival, p.order]
+};
+
+/**
+ * Cola de procesos listos (llegados, no terminados, no en ejecución) en el instante `t`,
+ * en el orden en que el algoritmo los atendería. Para RR y Prioridades+RR usa el
+ * `readyLog` real generado durante la simulación (el orden depende del historial de
+ * encolados/desalojos); para el resto lo deriva del mismo criterio de selección que usa
+ * el algoritmo, ya que en esos casos "el próximo de la cola" es siempre el que el
+ * algoritmo elegiría a continuación.
+ */
+export function readyQueueAt(algo, procs, segments, finish, readyLog, t) {
+  if (readyLog) {
+    let ids = [];
+    for (const snap of readyLog) {
+      if (snap.t > t) break;
+      ids = snap.queue;
+    }
+    return ids.map((id) => procs.find((p) => p.id === id)).filter(Boolean);
+  }
+
+  const running = segments.find((s) => s.start <= t && t < s.end);
+  const runningId = running ? running.id : null;
+  const eligible = procs.filter((p) => {
+    if (p.arrival > t || p.id === runningId) return false;
+    const f = finish[p.id];
+    return f === undefined || f > t;
+  });
+
+  const keyFn = algo === 'srtf'
+    ? (p) => [remainingAt(procs, segments, p.id, t), p.arrival, p.order]
+    : (READY_SORT_KEY[algo] || ((p) => [p.arrival, p.order]));
+
+  eligible.sort((a, b) => {
+    const ka = keyFn(a);
+    const kb = keyFn(b);
+    for (let i = 0; i < ka.length; i++) {
+      if (ka[i] !== kb[i]) return ka[i] - kb[i];
+    }
+    return 0;
+  });
+  return eligible;
 }
 
 export const ALGO_NAMES = {

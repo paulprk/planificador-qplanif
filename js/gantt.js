@@ -8,6 +8,7 @@
  *                                        — pinta el resultado de una simulación nueva y arranca la reproducción
  */
 import { PALETTE, colorFor } from './colors.js';
+import { setReadyQueueData, renderReadyQueueAt } from './readyqueue.js';
 
 const ganttTrack = document.getElementById('ganttTrack');
 const ganttAxis = document.getElementById('ganttAxis');
@@ -88,6 +89,7 @@ function setInstant(t) {
   instantSliderEl.value = currentInstant;
   instantLabelEl.textContent = `Instante: ${currentInstant} / ${maxInstant}`;
   updateReveal(currentInstant);
+  renderReadyQueueAt(currentInstant);
 }
 
 function startPlayback() {
@@ -254,13 +256,14 @@ function updateReveal(revealUpTo) {
 }
 
 /** Pinta un nuevo resultado de simulación y arranca la reproducción desde el instante 0. */
-export function renderSimulation({ procs, segments, finish, labelText, showPriority, quantumText }) {
+export function renderSimulation({ procs, segments, finish, labelText, showPriority, quantumText, algo, readyLog }) {
   pausePlayback();
   lastProcs = procs;
   lastSegments = segments;
   lastShowPriority = showPriority;
   lastQuantumText = quantumText;
 
+  setReadyQueueData({ algo, procs, segments, finish, readyLog });
   algoLabelEl.textContent = labelText;
 
   maxInstant = 0;

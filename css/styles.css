@@ -359,6 +359,59 @@ button:focus-visible, select:focus-visible, input:focus-visible {
 }
 .legend-item { display: flex; align-items: center; gap: 0.4rem; color: var(--ink-soft); }
 
+.ready-queue {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  flex-wrap: wrap;
+  margin-top: 0.9rem;
+  padding-top: 0.9rem;
+  border-top: 1px dashed var(--line);
+}
+.ready-queue-label {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+.ready-queue-items {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+  min-height: 1.7rem;
+}
+.ready-queue-empty {
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+  font-style: italic;
+}
+.ready-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.22rem 0.6rem 0.22rem 0.3rem;
+  border-radius: 999px;
+  border: 1.5px solid transparent;
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+.ready-chip .pos {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.15rem;
+  height: 1.15rem;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.1);
+  font-size: 0.65rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
 .playhead {
   position: absolute;
   top: -4px;

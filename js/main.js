@@ -97,7 +97,9 @@ function runSimulation() {
     finish: result.finish,
     labelText,
     showPriority: PRIORITY_ALGOS.includes(algo),
-    quantumText: needsQuantum ? quantumInput.value : null
+    quantumText: needsQuantum ? quantumInput.value : null,
+    algo,
+    readyLog: result.readyLog
   });
 }
 
