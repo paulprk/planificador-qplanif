@@ -19,7 +19,7 @@
   <div class="wrap">
     <header class="hero">
       <div class="hero-top">
-        <span class="eyebrow">Planificación de CPU - basado en qplanifs</span>
+        <span class="eyebrow">Introducción a los Sistemas Operativos · Facultad de Informática, UNLP</span>
         <div class="theme-picker">
           <button type="button" class="theme-picker-btn" id="themeBtn" aria-haspopup="true" aria-expanded="false" title="Tema de la página">
             <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -72,8 +72,8 @@
           </div>
         </div>
       </div>
-      <h1>Planificador de CPU</h1>
-      <p class="lede">Para ISO</p>
+      <h1>Planificador de CPU <span class="h1-sub">basado en qplanif</span></h1>
+      <p class="lede">Cargá un lote de procesos, elegí el algoritmo de scheduling y mirá el diagrama de Gantt resultante junto con la cola de listos, TR, TE, TPR y TPE — pensado como material de estudio para la materia.</p>
     </header>
 
     <section class="panel">
@@ -195,7 +195,11 @@
       </table>
     </section>
 
-    <footer class="note">TR = Fin − Llegada &nbsp;·&nbsp; TE = TR − Ráfaga &nbsp;·&nbsp; TPR y TPE son los promedios del lote</footer>
+    <footer class="note">
+      <span class="note-item"><strong>TR</strong> — Tiempo de Retorno: cuánto tardó el proceso en total <span class="note-formula">(Fin − Llegada)</span></span>
+      <span class="note-item"><strong>TE</strong> — Tiempo de Espera: cuánto de ese tiempo esperó sin ejecutar <span class="note-formula">(TR − Ráfaga)</span></span>
+      <span class="note-item"><strong>TPR / TPE</strong> — promedio de TR y TE de todos los procesos del lote</span>
+    </footer>
   </div>
 
   <script type="module" src="js/theme.js"></script>

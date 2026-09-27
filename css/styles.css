@@ -176,6 +176,15 @@ h1 {
   text-wrap: balance;
   color: var(--ink);
 }
+.h1-sub {
+  margin-left: 0.5rem;
+  font-family: var(--font-body);
+  font-weight: 500;
+  font-size: 0.48em;
+  letter-spacing: 0;
+  color: var(--ink-soft);
+  vertical-align: middle;
+}
 .lede {
   margin: 0;
   max-width: 62ch;
@@ -708,10 +717,29 @@ table.results-table td {
 table.results-table tr:last-child td { border-bottom: none; }
 
 footer.note {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  align-items: center;
   text-align: center;
+  padding-top: 1.1rem;
+  margin-top: 0.2rem;
+  border-top: 1px solid var(--line);
+}
+.note-item {
+  max-width: 46ch;
   font-size: 0.78rem;
+  line-height: 1.5;
   color: var(--ink-soft);
-  padding-top: 0.5rem;
+}
+.note-item strong {
+  font-family: var(--font-display);
+  font-weight: 600;
+  color: var(--ink);
+}
+.note-formula {
+  font-family: var(--font-display);
+  font-size: 0.92em;
 }
 
 @media (max-width: 640px) {
