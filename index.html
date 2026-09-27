@@ -189,20 +189,24 @@
       <div class="stats-grid" id="statsGrid"></div>
       <table class="results-table">
         <thead>
-          <tr><th>Proceso</th><th>Llegada</th><th>Ráfaga</th><th>Fin</th><th>TR</th><th>TE</th></tr>
+          <tr>
+            <th>Proceso</th><th>Llegada</th><th>Ráfaga</th><th>Fin</th>
+            <th>TR <button type="button" class="info-btn" data-info-key="tr" aria-label="Qué es TR">ⓘ</button></th>
+            <th>TE <button type="button" class="info-btn" data-info-key="te" aria-label="Qué es TE">ⓘ</button></th>
+          </tr>
         </thead>
         <tbody id="resultsBody"></tbody>
       </table>
     </section>
+  </div>
 
-    <footer class="note">
-      <span class="note-item"><strong>TR</strong> — Tiempo de Retorno: cuánto tardó el proceso en total <span class="note-formula">(Fin − Llegada)</span></span>
-      <span class="note-item"><strong>TE</strong> — Tiempo de Espera: cuánto de ese tiempo esperó sin ejecutar <span class="note-formula">(TR − Ráfaga)</span></span>
-      <span class="note-item"><strong>TPR / TPE</strong> — promedio de TR y TE de todos los procesos del lote</span>
-    </footer>
+  <div class="info-popover" id="infoPopover" role="tooltip" hidden>
+    <div class="info-popover-title" id="infoPopoverTitle"></div>
+    <div class="info-popover-body" id="infoPopoverBody"></div>
   </div>
 
   <script type="module" src="js/theme.js"></script>
+  <script type="module" src="js/infopopover.js"></script>
   <script type="module" src="js/main.js"></script>
 </body>
 </html>

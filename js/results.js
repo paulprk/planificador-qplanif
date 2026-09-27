@@ -1,6 +1,7 @@
 /**
  * Tabla de TR/TE por proceso y las fichas de TPR/TPE del lote.
- * TR = Fin − Llegada · TE = TR − Ráfaga · TPR/TPE = promedios del lote.
+ * Las explicaciones de cada sigla viven en infopopover.js, detrás del
+ * botón "ⓘ" que se agrega junto a cada label.
  */
 export function renderResults(procs, finish) {
   const body = document.getElementById('resultsBody');
@@ -32,9 +33,17 @@ export function renderResults(procs, finish) {
   [['TPR', tpr], ['TPE', tpe]].forEach(([label, value]) => {
     const tile = document.createElement('div');
     tile.className = 'stat-tile';
+    const labRow = document.createElement('div'); labRow.className = 'label-row';
     const lab = document.createElement('span'); lab.className = 'label'; lab.textContent = label;
+    const info = document.createElement('button');
+    info.type = 'button';
+    info.className = 'info-btn';
+    info.dataset.infoKey = label.toLowerCase();
+    info.setAttribute('aria-label', `Qué es ${label}`);
+    info.textContent = 'ⓘ';
+    labRow.append(lab, info);
     const val = document.createElement('span'); val.className = 'value'; val.textContent = value;
-    tile.append(lab, val);
+    tile.append(labRow, val);
     statsGrid.appendChild(tile);
   });
 }
