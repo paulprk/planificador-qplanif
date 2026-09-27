@@ -175,9 +175,9 @@ header.hero {
   width: 1.45rem;
   height: 1.45rem;
   padding: 0;
-  border: none;
+  border: 1.5px solid var(--line-strong);
   border-radius: 50%;
-  background: var(--surface-2);
+  background: var(--surface);
   color: var(--ink-soft);
   font-family: var(--font-display);
   font-size: 0.82rem;
@@ -186,8 +186,8 @@ header.hero {
   cursor: pointer;
   flex: none;
 }
-.info-btn:hover { color: var(--accent); background: var(--accent-soft); }
-.info-btn.active { color: var(--accent); background: var(--accent-soft); }
+.info-btn:hover { color: var(--accent); background: var(--accent-soft); border-color: var(--accent); }
+.info-btn.active { color: var(--accent); background: var(--accent-soft); border-color: var(--accent); }
 
 .info-popover {
   position: fixed;
