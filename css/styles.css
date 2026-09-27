@@ -98,6 +98,13 @@ header.hero {
   padding-bottom: 0.75rem;
   border-bottom: 1px solid var(--line);
 }
+.hero-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
 .eyebrow {
   font-family: var(--font-display);
   font-size: 0.72rem;
@@ -105,6 +112,31 @@ header.hero {
   letter-spacing: 0.09em;
   text-transform: uppercase;
   color: var(--accent);
+}
+.theme-toggle {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  background: var(--surface-2);
+  border-radius: 9px;
+  flex-shrink: 0;
+}
+.theme-btn {
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 0.76rem;
+  padding: 0.32rem 0.65rem;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+.theme-btn:hover { color: var(--ink); }
+.theme-btn.active {
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
 }
 h1 {
   margin: 0;

@@ -6,11 +6,26 @@
   <title>Planificador de CPU</title>
   <meta name="description" content="Simulador de algoritmos de planificación de CPU (FCFS, SJF, SRTF, Round Robin, Prioridades) con diagrama de Gantt animado.">
   <link rel="stylesheet" href="css/styles.css">
+  <script>
+    try {
+      var savedTheme = localStorage.getItem('planificador-cpu-theme');
+      if (savedTheme === 'light' || savedTheme === 'dark') {
+        document.documentElement.setAttribute('data-theme', savedTheme);
+      }
+    } catch (e) { /* localStorage no disponible */ }
+  </script>
 </head>
 <body>
   <div class="wrap">
     <header class="hero">
-      <span class="eyebrow">Planificación de CPU - basado en qplanifs</span>
+      <div class="hero-top">
+        <span class="eyebrow">Planificación de CPU - basado en qplanifs</span>
+        <div class="theme-toggle" role="group" aria-label="Tema de la página">
+          <button type="button" class="theme-btn" data-theme-choice="auto">Auto</button>
+          <button type="button" class="theme-btn" data-theme-choice="light">Claro</button>
+          <button type="button" class="theme-btn" data-theme-choice="dark">Oscuro</button>
+        </div>
+      </div>
       <h1>Planificador de CPU</h1>
       <p class="lede">Para ISO</p>
     </header>
@@ -130,6 +145,7 @@
     <footer class="note">TR = Fin − Llegada &nbsp;·&nbsp; TE = TR − Ráfaga &nbsp;·&nbsp; TPR y TPE son los promedios del lote</footer>
   </div>
 
+  <script type="module" src="js/theme.js"></script>
   <script type="module" src="js/main.js"></script>
 </body>
 </html>
