@@ -20,10 +20,56 @@
     <header class="hero">
       <div class="hero-top">
         <span class="eyebrow">Planificación de CPU - basado en qplanifs</span>
-        <div class="theme-toggle" role="group" aria-label="Tema de la página">
-          <button type="button" class="theme-btn" data-theme-choice="auto">Auto</button>
-          <button type="button" class="theme-btn" data-theme-choice="light">Claro</button>
-          <button type="button" class="theme-btn" data-theme-choice="dark">Oscuro</button>
+        <div class="theme-picker">
+          <button type="button" class="theme-picker-btn" id="themeBtn" aria-haspopup="true" aria-expanded="false" title="Tema de la página">
+            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="4"/>
+              <line x1="12" y1="2.5" x2="12" y2="4.5"/>
+              <line x1="12" y1="19.5" x2="12" y2="21.5"/>
+              <line x1="2.5" y1="12" x2="4.5" y2="12"/>
+              <line x1="19.5" y1="12" x2="21.5" y2="12"/>
+              <line x1="5.11" y1="5.11" x2="6.52" y2="6.52"/>
+              <line x1="17.48" y1="17.48" x2="18.89" y2="18.89"/>
+              <line x1="5.11" y1="18.89" x2="6.52" y2="17.48"/>
+              <line x1="17.48" y1="6.52" x2="18.89" y2="5.11"/>
+            </svg>
+          </button>
+          <div class="theme-menu" id="themeMenu" role="menu" hidden>
+            <button type="button" class="theme-option" role="menuitemradio" data-theme-choice="auto">
+              <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true">
+                <circle cx="12" cy="12" r="7.2" fill="none" stroke="currentColor" stroke-width="1.6"/>
+                <path d="M12 4.8a7.2 7.2 0 000 14.4z" fill="currentColor"/>
+              </svg>
+              <span>Automático</span>
+              <svg class="check" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="4,13 9,18 20,6"/></svg>
+            </button>
+            <button type="button" class="theme-option" role="menuitemradio" data-theme-choice="light">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="4"/>
+                <line x1="12" y1="2.5" x2="12" y2="4.5"/>
+                <line x1="12" y1="19.5" x2="12" y2="21.5"/>
+                <line x1="2.5" y1="12" x2="4.5" y2="12"/>
+                <line x1="19.5" y1="12" x2="21.5" y2="12"/>
+                <line x1="5.11" y1="5.11" x2="6.52" y2="6.52"/>
+                <line x1="17.48" y1="17.48" x2="18.89" y2="18.89"/>
+                <line x1="5.11" y1="18.89" x2="6.52" y2="17.48"/>
+                <line x1="17.48" y1="6.52" x2="18.89" y2="5.11"/>
+              </svg>
+              <span>Claro</span>
+              <svg class="check" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="4,13 9,18 20,6"/></svg>
+            </button>
+            <button type="button" class="theme-option" role="menuitemradio" data-theme-choice="dark">
+              <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true">
+                <mask id="themeMoonMask">
+                  <rect width="24" height="24" fill="white"/>
+                  <circle cx="15.2" cy="8.6" r="6.4" fill="black"/>
+                </mask>
+                <circle cx="12" cy="12" r="8" fill="currentColor" mask="url(#themeMoonMask)"/>
+              </svg>
+              <span>Oscuro</span>
+              <svg class="check" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="4,13 9,18 20,6"/></svg>
+            </button>
+          </div>
         </div>
       </div>
       <h1>Planificador de CPU</h1>
