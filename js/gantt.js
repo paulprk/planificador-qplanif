@@ -21,6 +21,14 @@ const algoLabelEl = document.getElementById('algoLabel');
 const instantSliderEl = document.getElementById('instantSlider');
 const instantLabelEl = document.getElementById('instantLabel');
 const playPauseBtn = document.getElementById('playPause');
+const zoomOutBtn = document.getElementById('zoomOut');
+const zoomInBtn = document.getElementById('zoomIn');
+const zoomFitBtn = document.getElementById('zoomFit');
+
+const MIN_UNIT_PX = 6;
+const AUTO_MAX_UNIT_PX = 34;
+const MAX_UNIT_PX = 48;
+const ZOOM_STEP = 6;
 
 let segEls = [];
 let playheadEl = null;
@@ -28,6 +36,7 @@ let gUnitPx = 34;
 let gMaxEnd = 1;
 let gPlayheadOffset = 0;
 let viewMode = 'single';
+let userUnitPx = null; // null = ajuste automático al ancho disponible
 
 let lastProcs = null;
 let lastSegments = [];
@@ -42,6 +51,32 @@ let playTimer = null;
 function setNoAnim(on) {
   ganttTrack.classList.toggle('no-anim', on);
   lanesWrap.classList.toggle('no-anim', on);
+}
+
+function scrollContainerEl() {
+  return viewMode === 'lanes'
+    ? lanesWrap.querySelector('.lanes-scroll')
+    : singleWrap.querySelector('.gantt-scroll');
+}
+
+function autoFitUnitPx(maxEnd) {
+  const el = scrollContainerEl();
+  const avail = el ? el.clientWidth : 0;
+  if (!avail) return AUTO_MAX_UNIT_PX;
+  const usable = avail - 24; // padding interno del track
+  return Math.max(MIN_UNIT_PX, Math.min(AUTO_MAX_UNIT_PX, Math.floor(usable / maxEnd)));
+}
+
+function updateZoomBtn() {
+  zoomFitBtn.classList.toggle('active', userUnitPx === null);
+}
+
+function rebuildKeepingInstant() {
+  if (!lastProcs) return;
+  setNoAnim(true);
+  buildGantt(lastProcs, lastSegments, lastShowPriority, lastQuantumText);
+  setInstant(currentInstant);
+  requestAnimationFrame(() => setNoAnim(false));
 }
 
 function updatePlayBtn() {
@@ -190,7 +225,7 @@ function buildGantt(procs, segments, showPriority, quantumText) {
   segments.forEach((s) => { if (s.end > maxEnd) maxEnd = s.end; });
   if (maxEnd === 0) maxEnd = 1;
   gMaxEnd = maxEnd;
-  gUnitPx = maxEnd > 40 ? 20 : (maxEnd > 24 ? 26 : 34);
+  gUnitPx = userUnitPx != null ? userUnitPx : autoFitUnitPx(maxEnd);
 
   if (viewMode === 'lanes') {
     buildLanes(procs, segments, maxEnd, gUnitPx);
@@ -269,12 +304,30 @@ export function initPlayback() {
       document.querySelectorAll('.view-btn').forEach((b) => b.classList.toggle('active', b === btn));
       singleWrap.hidden = viewMode !== 'single';
       lanesWrap.hidden = viewMode !== 'lanes';
-      if (lastProcs) {
-        setNoAnim(true);
-        buildGantt(lastProcs, lastSegments, lastShowPriority, lastQuantumText);
-        setInstant(currentInstant);
-        requestAnimationFrame(() => setNoAnim(false));
-      }
+      rebuildKeepingInstant();
     });
+  });
+
+  zoomOutBtn.addEventListener('click', () => {
+    userUnitPx = Math.max(MIN_UNIT_PX, (userUnitPx ?? gUnitPx) - ZOOM_STEP);
+    updateZoomBtn();
+    rebuildKeepingInstant();
+  });
+  zoomInBtn.addEventListener('click', () => {
+    userUnitPx = Math.min(MAX_UNIT_PX, (userUnitPx ?? gUnitPx) + ZOOM_STEP);
+    updateZoomBtn();
+    rebuildKeepingInstant();
+  });
+  zoomFitBtn.addEventListener('click', () => {
+    userUnitPx = null;
+    updateZoomBtn();
+    rebuildKeepingInstant();
+  });
+
+  let resizeTimer = null;
+  window.addEventListener('resize', () => {
+    if (userUnitPx !== null) return;
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(rebuildKeepingInstant, 150);
   });
 }

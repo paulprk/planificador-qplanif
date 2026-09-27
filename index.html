@@ -81,9 +81,16 @@
         <span class="instant-label" id="instantLabel">Instante: 0</span>
       </div>
       <p class="algo-label" id="algoLabel"></p>
-      <div class="view-toggle" role="group" aria-label="Vista del diagrama">
-        <button type="button" class="view-btn active" data-view="single">Vista única</button>
-        <button type="button" class="view-btn" data-view="lanes">Vista por proceso</button>
+      <div class="gantt-toolbar">
+        <div class="view-toggle" role="group" aria-label="Vista del diagrama">
+          <button type="button" class="view-btn active" data-view="single">Vista única</button>
+          <button type="button" class="view-btn" data-view="lanes">Vista por proceso</button>
+        </div>
+        <div class="zoom-toggle" role="group" aria-label="Zoom del diagrama">
+          <button type="button" id="zoomOut" title="Alejar">－</button>
+          <button type="button" id="zoomFit" class="active" title="Ajustar al ancho disponible">⤢ Ajustar</button>
+          <button type="button" id="zoomIn" title="Acercar">＋</button>
+        </div>
       </div>
       <div id="singleWrap">
         <div class="gantt-scroll">

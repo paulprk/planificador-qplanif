@@ -378,15 +378,22 @@ button:focus-visible, select:focus-visible, input:focus-visible {
   border-top: 6px solid var(--running);
 }
 
-.view-toggle {
+.gantt-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-bottom: 0.8rem;
+}
+.view-toggle, .zoom-toggle {
   display: inline-flex;
   gap: 2px;
   padding: 2px;
   background: var(--surface-2);
   border-radius: 9px;
-  margin-bottom: 0.8rem;
 }
-.view-btn {
+.view-btn, .zoom-toggle button {
   font-family: var(--font-body);
   font-weight: 600;
   font-size: 0.78rem;
@@ -397,11 +404,13 @@ button:focus-visible, select:focus-visible, input:focus-visible {
   color: var(--ink-soft);
   cursor: pointer;
 }
-.view-btn.active {
+.view-btn.active, .zoom-toggle button.active {
   background: var(--surface);
   color: var(--ink);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
 }
+.zoom-toggle button:hover { color: var(--ink); }
+#zoomOut, #zoomIn { font-family: var(--font-display); }
 
 /* Gantt — vista por proceso */
 .lanes-wrap {
