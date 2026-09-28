@@ -65,8 +65,10 @@ function autoFitUnitPx(maxEnd) {
   const el = scrollContainerEl();
   const avail = el ? el.clientWidth : 0;
   if (!avail) return AUTO_MAX_UNIT_PX;
-  const usable = avail - 24; // padding interno del track
-  return Math.max(MIN_UNIT_PX, Math.min(AUTO_MAX_UNIT_PX, Math.floor(usable / maxEnd)));
+  const usable = avail - 32; // padding horizontal real de .gantt-inner (1rem a cada lado)
+  // Sin redondear: el navegador maneja bien los px fraccionarios, y redondear
+  // para abajo es justo lo que dejaba ese resto de espacio en blanco al final.
+  return Math.max(MIN_UNIT_PX, Math.min(AUTO_MAX_UNIT_PX, usable / maxEnd));
 }
 
 function updateZoomBtn() {
