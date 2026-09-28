@@ -912,6 +912,20 @@ footer.note {
   .stats-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
+/* Objetivos táctiles: en touch (no mouse) varios controles quedan chicos
+   para un dedo (HIG pide 44x44pt mínimo). Se agranda solo ahí — en
+   desktop con mouse el tamaño compacto actual sigue siendo el correcto. */
+@media (hover: none) and (pointer: coarse) {
+  .info-btn { width: 1.85rem; height: 1.85rem; font-size: 0.92rem; }
+  .theme-picker-btn { width: 2.6rem; height: 2.6rem; }
+  .rm-btn { padding: 0.55rem 0.65rem; font-size: 1.1rem; }
+  .zoom-toggle button, .view-btn, .mode-btn, .theme-option {
+    padding-top: 0.6rem;
+    padding-bottom: 0.6rem;
+  }
+  .stat-tile .info-btn, table.results-table .info-btn { width: 1.7rem; height: 1.7rem; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .seg, .playhead, .lanes-playhead, button { transition: none !important; transform: none !important; }
   .info-popover { transition: opacity 120ms ease !important; transform: none !important; }
