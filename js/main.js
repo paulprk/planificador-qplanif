@@ -303,7 +303,7 @@ function runIoSimulation() {
     showPriority: PRIORITY_ALGOS.includes(algo) || resourceAlgo === 'pri',
     quantumText: needsQuantum ? quantumInput.value : null,
     algo,
-    readyLog: null,
+    readyLog: result.readyLog,
     resourceLabels: result.resources
   });
 }

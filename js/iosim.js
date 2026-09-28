@@ -48,6 +48,22 @@ export function simulateWithResources({ tasks, resourceNames, cpuAlgo, resourceA
 
   const openSeg = new Array(numResources + 1).fill(null);
   let enqueueSeq = 0;
+  const readyLog = [];
+
+  function flatQueueFor(res) {
+    if (res === 0 && cpuAlgo === 'pri_rr') {
+      const keys = Object.keys(priorityQueues[0]).map(Number).sort((a, b) => a - b);
+      const out = [];
+      keys.forEach((k) => priorityQueues[0][k].forEach((task) => out.push(task.id)));
+      return out;
+    }
+    return queues[res].map((task) => task.id);
+  }
+  function snapAllQueues(time) {
+    for (let res = 0; res <= numResources; res++) {
+      readyLog.push({ t: time, res, queue: flatQueueFor(res) });
+    }
+  }
 
   function policyForResource(res) { return res === 0 ? cpuAlgo : resourceAlgo; }
 
@@ -141,12 +157,18 @@ export function simulateWithResources({ tasks, resourceNames, cpuAlgo, resourceA
         }
       }
     }
+    snapAllQueues(t); // después de despachar: refleja quién espera mientras corre lo recién asignado
 
     if (completed >= state.length) break;
 
     const anyRunning = running.some((r) => r !== null);
     if (!anyRunning) {
-      if (arrivalPtr < arrivalsSorted.length) { t = arrivalsSorted[arrivalPtr].arrival; processArrivalsAt(t); continue; }
+      if (arrivalPtr < arrivalsSorted.length) {
+        t = arrivalsSorted[arrivalPtr].arrival;
+        processArrivalsAt(t);
+        snapAllQueues(t);
+        continue;
+      }
       break;
     }
 
@@ -203,6 +225,7 @@ export function simulateWithResources({ tasks, resourceNames, cpuAlgo, resourceA
         }
       }
     }
+    snapAllQueues(t);
   }
 
   const sorted = segments.sort((a, b) => a.start - b.start || a.res - b.res);
@@ -216,5 +239,15 @@ export function simulateWithResources({ tasks, resourceNames, cpuAlgo, resourceA
     }
   });
 
-  return { segments: merged, finish, resources: ['CPU', ...resourceNames], guard, completed, total: state.length };
+  return { segments: merged, finish, resources: ['CPU', ...resourceNames], readyLog, guard, completed, total: state.length };
+}
+
+/** Cola de listos de un recurso puntual (0=CPU, 1..N=recursos) en el instante `t`. */
+export function ioReadyQueueAt(readyLog, res, t) {
+  let ids = [];
+  for (const snap of readyLog) {
+    if (snap.t > t) break;
+    if (snap.res === res) ids = snap.queue;
+  }
+  return ids;
 }

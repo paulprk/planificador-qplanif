@@ -276,7 +276,7 @@ export function renderSimulation({ procs, segments, finish, labelText, showPrior
   lastQuantumText = quantumText;
   lastResourceLabels = resourceLabels || null;
 
-  setReadyQueueData({ algo, procs, segments, finish, readyLog, ioMode: Boolean(resourceLabels) });
+  setReadyQueueData({ algo, procs, segments, finish, readyLog, ioMode: Boolean(resourceLabels), resourceLabels });
   algoLabelEl.textContent = labelText;
 
   maxInstant = 0;
