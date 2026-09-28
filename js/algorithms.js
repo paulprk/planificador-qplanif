@@ -76,6 +76,9 @@ function preemptiveSim(procs, metricFn) {
   let completed = 0;
   let lastId = null;
   let segStart = null;
+  // Instante en que cada proceso entró a la cola de listos (llegada o expulsión): desempata como en qplanif.
+  const since = {};
+  procs.forEach((p) => { since[p.id] = p.arrival; });
   const totalBurst = procs.reduce((s, p) => s + p.burst, 0);
   const maxArrival = Math.max(...procs.map((p) => p.arrival));
   const limit = totalBurst + maxArrival + 5;
@@ -88,10 +91,13 @@ function preemptiveSim(procs, metricFn) {
       time++;
       continue;
     }
-    available.sort((a, b) => metricFn(a, rem) - metricFn(b, rem) || a.arrival - b.arrival || a.order - b.order);
+    available.sort((a, b) => metricFn(a, rem) - metricFn(b, rem) || since[a.id] - since[b.id] || a.order - b.order);
     const p = available[0];
     if (lastId !== p.id) {
-      if (lastId !== null) segments.push({ id: lastId, start: segStart, end: time });
+      if (lastId !== null) {
+        segments.push({ id: lastId, start: segStart, end: time });
+        if (rem[lastId] > 0) since[lastId] = time;
+      }
       lastId = p.id; segStart = time;
     }
     rem[p.id]--;

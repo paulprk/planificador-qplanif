@@ -5,15 +5,22 @@
  * propia cola con su propia política de selección (para recursos, solo
  * FCFS/SJF/Prioridades no-expulsiva, igual que el original).
  */
+/**
+ * Clave de orden de una cola, igual que las colas del qplanif original
+ * (ColasCls.hh): la métrica de la política, después el instante en que la
+ * tarea entró a esa cola y por último su índice en el lote. Solo Round Robin
+ * es una FIFO pura (orden de inserción).
+ */
 function pickKey(policy, task) {
-  const burstDur = task.bursts[task.burstIdx].dur;
   switch (policy) {
     case 'sjf':
     case 'srtf':
-      return [burstDur, task.queueSeq];
+      return [task.remaining, task.queueEnterTime, task.order];
     case 'pri':
     case 'pri_exp':
-      return [task.priority, task.queueSeq];
+      return [task.priority, task.queueEnterTime, task.order];
+    case 'fcfs':
+      return [task.queueEnterTime, task.order];
     default:
       return [task.queueSeq];
   }
@@ -132,15 +139,14 @@ export function simulateWithResources({ tasks, resourceNames, cpuAlgo, resourceA
   while (completed < state.length && guard++ < limit * 4 + 2000) {
     if ((cpuAlgo === 'srtf' || cpuAlgo === 'pri_exp') && running[0] && queues[0].length > 0) {
       const runTask = running[0];
-      const runKey = cpuAlgo === 'srtf'
-        ? [runTask.remaining, runTask.queueSeq]
-        : [runTask.priority, runTask.queueSeq];
-      let bestIdx = -1, bestKey = null;
-      queues[0].forEach((c, i) => {
+      const runMetric = cpuAlgo === 'srtf' ? runTask.remaining : runTask.priority;
+      let bestKey = null;
+      queues[0].forEach((c) => {
         const k = pickKey(cpuAlgo, c);
-        if (bestKey === null || compareKeys(k, bestKey) < 0) { bestKey = k; bestIdx = i; }
+        if (bestKey === null || compareKeys(k, bestKey) < 0) bestKey = k;
       });
-      if (bestIdx >= 0 && compareKeys(bestKey, runKey) < 0) {
+      // Solo expulsa si el candidato es estrictamente mejor (un empate no desaloja).
+      if (bestKey !== null && bestKey[0] < runMetric) {
         closeSeg(0, t);
         enqueue(0, runTask, t);
         running[0] = null;
