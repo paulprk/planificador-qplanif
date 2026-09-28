@@ -3,11 +3,13 @@
  * el cargador de código `.def` y el Gantt entre sí. No contiene lógica de
  * simulación ni de renderizado propia — solo orquesta los demás módulos.
  *
- * Modo E/S: si el código cargado declara recursos (RECURSO "...") y alguna
- * tarea los usa, la app deja de usar la tabla simple (una ráfaga de CPU por
- * proceso) y pasa a simular con iosim.js, que soporta tareas con ráfagas
- * alternadas entre la CPU y distintos recursos. "Restaurar ejemplo" vuelve
- * siempre al modo simple.
+ * Modo simple / Modo E/S: son dos configuraciones independientes que la app
+ * recuerda por separado — la tabla simple (una ráfaga de CPU por proceso) y
+ * el último lote de E/S cargado por código (tareas con ráfagas alternadas
+ * CPU/recurso, simuladas con iosim.js). El toggle de abajo de "01 Lote de
+ * procesos" solo cambia cuál de las dos se está viendo/simulando, no borra
+ * la otra — así no hace falta volver a pegar el código de E/S cada vez que
+ * se pasa a modo simple y se vuelve. "Restaurar ejemplo" sí resetea todo.
  */
 import { PRIORITY_ALGOS, ALGO_NAMES, runAlgorithm } from './algorithms.js';
 import { parseDefText } from './parser.js';
@@ -17,6 +19,7 @@ import { renderResults } from './results.js';
 import { initImageImport } from './imageimport.js';
 import { initCodePreview, setCodePreviewEnabled } from './codepreview.js';
 import { simulateWithResources } from './iosim.js';
+import { PALETTE } from './colors.js';
 
 const algoSel = document.getElementById('algo');
 const quantumField = document.getElementById('quantumField');
@@ -27,11 +30,12 @@ const errMsg = document.getElementById('errMsg');
 const procTable = document.getElementById('procTable');
 const addRowBtn = document.getElementById('addRow');
 const ioSummary = document.getElementById('ioSummary');
-const ioBadge = document.getElementById('ioBadge');
+const codeBox = document.getElementById('codeBox');
+const codeInput = document.getElementById('codeInput');
 
 const RESOURCE_ALGO_NAMES = { fcfs: 'FCFS', sjf: 'SJF', pri: 'Prioridades' };
 
-let ioMode = false;
+let mode = 'simple'; // 'simple' | 'io'
 let ioTasks = null;
 let ioResourceNames = [];
 
@@ -39,84 +43,116 @@ function updateFieldVisibility() {
   const needsQuantum = algoSel.value === 'rr' || algoSel.value === 'pri_rr';
   quantumField.classList.toggle('show', needsQuantum);
   setPriorityColumnVisible(PRIORITY_ALGOS.includes(algoSel.value));
-  resourceAlgoField.classList.toggle('show', ioMode);
+  resourceAlgoField.classList.toggle('show', mode === 'io');
 }
 algoSel.addEventListener('change', updateFieldVisibility);
 
 document.getElementById('addRow').addEventListener('click', addDefaultRow);
 document.getElementById('resetRows').addEventListener('click', () => {
-  exitIoMode();
-  loadDefault();
-  runSimulation();
-});
-
-// --- Modo E/S: entrar/salir, y resumen de solo lectura del lote cargado ---
-function exitIoMode() {
-  ioMode = false;
   ioTasks = null;
   ioResourceNames = [];
-  procTable.hidden = false;
-  addRowBtn.hidden = false;
-  ioSummary.hidden = true;
-  ioBadge.hidden = true;
-  setCodePreviewEnabled(true);
-  updateFieldVisibility();
-}
+  loadDefault();
+  setMode('simple');
+});
 
-function burstSeqText(bursts) {
-  return bursts
-    .map((b) => (b.res === 0 ? `CPU:${b.dur}` : `${ioResourceNames[b.res - 1]}:${b.dur}`))
-    .join(' → ');
+// --- Toggle Modo simple / Modo E/S ---
+function burstSeqText(t) {
+  const spans = t.bursts.map((b) => {
+    const span = document.createElement('span');
+    span.className = b.res === 0 ? 'io-burst cpu' : 'io-burst';
+    span.textContent = b.res === 0 ? `CPU ${b.dur}` : `${ioResourceNames[b.res - 1]} ${b.dur}`;
+    return span;
+  });
+  const frag = document.createDocumentFragment();
+  spans.forEach((span, i) => {
+    if (i > 0) {
+      const arrow = document.createElement('span');
+      arrow.className = 'io-arrow';
+      arrow.textContent = '→';
+      frag.appendChild(arrow);
+    }
+    frag.appendChild(span);
+  });
+  return frag;
 }
 
 function renderIoSummary() {
   ioSummary.innerHTML = '';
+
+  if (!ioTasks) {
+    const empty = document.createElement('div');
+    empty.className = 'io-summary-empty';
+    empty.textContent = 'Todavía no cargaste ningún lote con E/S. Abrí "Ver / cargar código", escribí RECURSO/TAREA con ráfagas de recurso (ej: [R1,3]) y tocá "Cargar código".';
+    ioSummary.appendChild(empty);
+    return;
+  }
+
   const resLine = document.createElement('div');
   resLine.className = 'io-summary-resources';
   resLine.textContent = `Recursos declarados: ${ioResourceNames.join(', ') || '(ninguno)'}`;
   ioSummary.appendChild(resLine);
 
-  ioTasks.forEach((t) => {
+  ioTasks.forEach((t, i) => {
     const row = document.createElement('div');
     row.className = 'io-task';
+
     const name = document.createElement('span');
     name.className = 'name-tag';
-    name.textContent = t.name;
+    const sw = document.createElement('span');
+    sw.className = 'swatch';
+    sw.style.background = `var(--${PALETTE[i % PALETTE.length]})`;
+    name.append(sw, document.createTextNode(t.name));
+
     const meta = document.createElement('span');
     meta.className = 'meta';
     meta.textContent = `llega ${t.arrival}, prioridad ${t.priority}`;
+
     const seq = document.createElement('span');
     seq.className = 'seq';
-    seq.textContent = burstSeqText(t.bursts);
+    seq.appendChild(burstSeqText(t));
+
     row.append(name, meta, seq);
     ioSummary.appendChild(row);
   });
 }
 
-function enterIoMode(tasks, resourceNames) {
-  ioMode = true;
-  ioTasks = tasks;
-  ioResourceNames = resourceNames;
-  procTable.hidden = true;
-  addRowBtn.hidden = true;
-  ioBadge.hidden = false;
-  ioSummary.hidden = false;
-  renderIoSummary();
-  setCodePreviewEnabled(false);
+function setMode(newMode) {
+  mode = newMode;
+  document.querySelectorAll('.mode-btn').forEach((b) => b.classList.toggle('active', b.dataset.mode === mode));
+
+  const isIo = mode === 'io';
+  procTable.hidden = isIo;
+  addRowBtn.hidden = isIo;
+  ioSummary.hidden = !isIo;
+  setCodePreviewEnabled(!isIo);
+  if (isIo) {
+    renderIoSummary();
+    if (!ioTasks) {
+      codeBox.hidden = false;
+      codeInput.focus();
+    }
+  }
   updateFieldVisibility();
+  runSimulation();
 }
 
+document.querySelectorAll('.mode-btn').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    if (btn.dataset.mode === mode) return;
+    setMode(btn.dataset.mode);
+  });
+});
+
 // --- Carga de procesos por código (formato .def de qplanif) ---
-const codeBox = document.getElementById('codeBox');
 document.getElementById('toggleCode').addEventListener('click', () => {
   codeBox.hidden = !codeBox.hidden;
-  if (!codeBox.hidden) document.getElementById('codeInput').focus();
+  if (!codeBox.hidden) codeInput.focus();
 });
 
 document.getElementById('loadCode').addEventListener('click', () => {
   const msg = document.getElementById('codeMsg');
   msg.className = 'code-msg';
-  const raw = document.getElementById('codeInput').value;
+  const raw = codeInput.value;
   const { tasks, resourceNames } = parseDefText(raw);
 
   if (tasks.length === 0) {
@@ -132,17 +168,19 @@ document.getElementById('loadCode').addEventListener('click', () => {
   }
 
   if (usable.some((t) => t.usesResources)) {
-    enterIoMode(usable, resourceNames);
-    msg.textContent = `Cargadas ${usable.length} tarea(s) con ${resourceNames.length} recurso(s) de E/S. Modo E/S activado — mirá "01 Lote de procesos" arriba.`;
+    ioTasks = usable;
+    ioResourceNames = resourceNames;
+    setMode('io');
+    msg.textContent = `Cargadas ${usable.length} tarea(s) con ${resourceNames.length} recurso(s) de E/S.`;
     msg.className = 'code-msg';
   } else {
-    exitIoMode();
     replaceRows(usable.map((t) => ({
       name: t.name,
       arrival: t.arrival,
       priority: t.priority,
       burst: t.bursts.reduce((s, b) => s + b.dur, 0)
     })));
+    setMode('simple');
     const notes = [];
     if (usable.length !== tasks.length) notes.push(`${tasks.length - usable.length} tarea(s) sin ráfaga de CPU se ignoraron`);
     msg.textContent = `Cargadas ${usable.length} tarea(s).${notes.length ? ` ${notes.join('; ')}.` : ''}`;
@@ -154,8 +192,8 @@ document.getElementById('loadCode').addEventListener('click', () => {
 function runSimulation() {
   errMsg.classList.remove('show');
 
-  if (ioMode) {
-    runIoSimulation();
+  if (mode === 'io') {
+    if (ioTasks) runIoSimulation();
     return;
   }
 
@@ -242,7 +280,7 @@ function runIoSimulation() {
 }
 
 document.getElementById('simBtn').addEventListener('click', runSimulation);
-resourceAlgoSel.addEventListener('change', () => { if (ioMode) runSimulation(); });
+resourceAlgoSel.addEventListener('change', () => { if (mode === 'io') runSimulation(); });
 
 // --- Arranque ---
 initPlayback();

@@ -78,6 +78,10 @@
 
     <section class="panel">
       <h2><span class="num">01</span> Lote de procesos</h2>
+      <div class="mode-toggle" role="group" aria-label="Modo del lote">
+        <button type="button" class="mode-btn active" data-mode="simple">Modo simple</button>
+        <button type="button" class="mode-btn" data-mode="io">Modo E/S</button>
+      </div>
       <table class="proc-table" id="procTable">
         <thead>
           <tr>
@@ -143,7 +147,6 @@
         <button class="primary" id="simBtn" type="button" style="height:2.15rem">Simular</button>
       </div>
       <p style="margin:0;font-size:0.78rem;color:var(--ink-soft)">Prioridad: menor número = mayor prioridad. Se ignora en FCFS, SJF y SRTF.</p>
-      <p class="io-badge" id="ioBadge" hidden>Modo E/S: cargaste tareas con recursos además de CPU. La tabla de arriba queda fija — editá desde "Ver / cargar código". "Restaurar ejemplo" vuelve al modo simple.</p>
       <div class="error-msg" id="errMsg"></div>
     </section>
 
