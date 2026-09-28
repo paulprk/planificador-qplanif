@@ -353,6 +353,8 @@ input.num-cell { width: 4.5rem; font-variant-numeric: tabular-nums; text-align: 
 input.name-cell { width: 6.5rem; }
 #quantumField { display: none; }
 #quantumField.show { display: flex; }
+#resourceAlgoField { display: none; }
+#resourceAlgoField.show { display: flex; }
 .proc-table.hide-pri .pri-col { display: none; }
 
 table.proc-table {
@@ -507,6 +509,7 @@ button:focus-visible, select:focus-visible, input:focus-visible {
   gap: 0.5rem;
   margin-top: 0.6rem;
 }
+.io-summary[hidden] { display: none; }
 .io-summary-resources {
   font-size: 0.78rem;
   color: var(--ink-soft);

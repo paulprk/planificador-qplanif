@@ -39,7 +39,7 @@ function updateFieldVisibility() {
   const needsQuantum = algoSel.value === 'rr' || algoSel.value === 'pri_rr';
   quantumField.classList.toggle('show', needsQuantum);
   setPriorityColumnVisible(PRIORITY_ALGOS.includes(algoSel.value));
-  resourceAlgoField.hidden = !ioMode;
+  resourceAlgoField.classList.toggle('show', ioMode);
 }
 algoSel.addEventListener('change', updateFieldVisibility);
 

@@ -7,10 +7,14 @@
  * "input" delegado cubre la edición de valores.
  *
  * Mientras el usuario está escribiendo directamente en el textarea, se deja
- * de sincronizar (no le pisamos el cursor ni lo que está tipeando) hasta que
- * lo carga con "Cargar código" — ese mismo "Cargar código" dispara igual el
- * MutationObserver de #procBody y vuelve a sincronizar el textarea con lo
- * que efectivamente quedó cargado.
+ * de sincronizar (no le pisamos el cursor ni lo que está tipeando). No hay
+ * un listener de "blur" para volver a sincronizar al salir del campo: el
+ * click en "Cargar código" también dispara blur ANTES que el propio click,
+ * así que un blur-sync ahí pisaría lo que el usuario acaba de pegar justo
+ * antes de que el handler del botón llegue a leerlo. En cambio, "Cargar
+ * código" dispara igual el MutationObserver de #procBody (si el resultado
+ * fue al modo simple) y ese sí vuelve a sincronizar el textarea con lo que
+ * efectivamente quedó cargado.
  *
  * En modo E/S (tareas con recursos, ver main.js) la tabla simple no se
  * toca, así que este módulo se desactiva por completo — si no, el próximo
@@ -39,6 +43,5 @@ export function setCodePreviewEnabled(value) {
 export function initCodePreview() {
   render();
   procBody.addEventListener('input', render);
-  codeInput.addEventListener('blur', render);
   new MutationObserver(render).observe(procBody, { childList: true, subtree: true });
 }
