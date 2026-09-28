@@ -69,20 +69,31 @@ document.getElementById('resetRows').addEventListener('click', () => {
 });
 
 // --- Toggle Modo simple / Modo E/S ---
-function burstSeqText(t) {
-  const spans = t.bursts.map((b) => {
-    const span = document.createElement('span');
-    span.className = b.res === 0 ? 'io-burst cpu' : 'io-burst';
-    span.textContent = b.res === 0 ? `CPU ${b.dur}` : `${ioResourceNames[b.res - 1]} ${b.dur}`;
-    return span;
-  });
+function burstSeqText(t, taskIdx) {
   const frag = document.createDocumentFragment();
-  spans.forEach((span, i) => {
+  t.bursts.forEach((b, i) => {
     if (i > 0) {
       const arrow = document.createElement('span');
       arrow.className = 'io-arrow';
       arrow.textContent = '→';
       frag.appendChild(arrow);
+    }
+    const span = document.createElement('span');
+    span.className = b.res === 0 ? 'io-burst cpu' : 'io-burst';
+    const label = document.createElement('span');
+    if (b.res !== 0) label.dataset.resLabel = b.res;
+    label.textContent = `${b.res === 0 ? 'CPU' : ioResourceNames[b.res - 1]} ${b.dur}`;
+    span.appendChild(label);
+    if (b.res !== 0) {
+      const x = document.createElement('button');
+      x.type = 'button';
+      x.className = 'io-burst-x';
+      x.textContent = '×';
+      x.title = 'Quitar este pedido de E/S';
+      x.setAttribute('aria-label', `Quitar pedido de E/S ${ioResourceNames[b.res - 1]}`);
+      x.dataset.removeBurst = i;
+      x.dataset.ioIdx = taskIdx;
+      span.appendChild(x);
     }
     frag.appendChild(span);
   });
@@ -100,14 +111,125 @@ function ioField(type, value, field, idx, extra) {
   return input;
 }
 
+const DEVICE_SUGGESTIONS = ['Red', 'Impresora', 'Disco', 'Teclado', 'Pantalla', 'Scanner', 'USB'];
+
+function nextDeviceName() {
+  const taken = new Set(ioResourceNames.map((n) => n.toLowerCase()));
+  const free = DEVICE_SUGGESTIONS.find((n) => !taken.has(n.toLowerCase()));
+  if (free) return free;
+  let k = ioResourceNames.length + 1;
+  while (taken.has(`dispositivo ${k}`)) k++;
+  return `Dispositivo ${k}`;
+}
+
+function cleanDeviceName(raw) {
+  return raw.replace(/["\[\],#]/g, '').trim();
+}
+
+function isDeviceUsed(resIdx) {
+  return ioTasks.some((t) => t.bursts.some((b) => b.res === resIdx));
+}
+
+function syncIoCode() {
+  codeInput.value = defTextFromIoTasks(ioTasks, ioResourceNames);
+}
+
+function buildDevicesBlock() {
+  const box = document.createElement('div');
+  box.className = 'io-devices';
+
+  const title = document.createElement('div');
+  title.className = 'io-summary-resources';
+  title.textContent = 'Dispositivos de E/S';
+  box.appendChild(title);
+
+  const list = document.createElement('div');
+  list.className = 'io-device-list';
+  ioResourceNames.forEach((name, i) => {
+    const row = document.createElement('div');
+    row.className = 'io-device';
+    const num = document.createElement('span');
+    num.className = 'io-device-num';
+    num.textContent = i + 1;
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'name-cell';
+    input.value = name;
+    input.dataset.deviceIdx = i;
+    input.setAttribute('aria-label', `Nombre del dispositivo ${i + 1}`);
+    const rm = document.createElement('button');
+    rm.type = 'button';
+    rm.className = 'rm-btn';
+    rm.textContent = '×';
+    rm.dataset.removeDevice = i;
+    const used = isDeviceUsed(i + 1);
+    rm.disabled = used;
+    rm.title = used ? 'Lo usa algún proceso: quitá primero sus pedidos de E/S' : 'Quitar dispositivo';
+    rm.setAttribute('aria-label', `Quitar dispositivo ${name}`);
+    row.append(num, input, rm);
+    list.appendChild(row);
+  });
+  if (ioResourceNames.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'io-device-empty';
+    empty.textContent = 'Todavía no hay dispositivos.';
+    list.appendChild(empty);
+  }
+  box.appendChild(list);
+
+  const foot = document.createElement('div');
+  foot.className = 'io-device-foot';
+  const add = document.createElement('button');
+  add.type = 'button';
+  add.dataset.addDevice = '1';
+  add.textContent = '+ Agregar dispositivo';
+  const hint = document.createElement('span');
+  hint.className = 'io-device-hint';
+  hint.textContent = 'Cada dispositivo atiende a un proceso por vez. Si está ocupado, el que lo pide espera en su cola.';
+  foot.append(add, hint);
+  box.appendChild(foot);
+  return box;
+}
+
+function addIoControl(taskIdx) {
+  const wrap = document.createElement('span');
+  wrap.className = 'io-add';
+  if (ioResourceNames.length === 0) return wrap;
+  const sel = document.createElement('select');
+  sel.className = 'io-add-sel';
+  sel.dataset.addIoSel = taskIdx;
+  sel.setAttribute('aria-label', 'Dispositivo para el nuevo pedido de E/S');
+  ioResourceNames.forEach((n, i) => {
+    const o = document.createElement('option');
+    o.value = i + 1;
+    o.textContent = n;
+    sel.appendChild(o);
+  });
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'io-add-btn';
+  btn.textContent = '+ E/S';
+  btn.title = 'Agrega un pedido de E/S de 2 unidades y una ráfaga de CPU de 1 al final';
+  btn.dataset.addIo = taskIdx;
+  wrap.append(sel, btn);
+  return wrap;
+}
+
+function mergeAdjacentCpu(bursts) {
+  const out = [];
+  bursts.forEach((b) => {
+    const last = out[out.length - 1];
+    if (last && last.res === 0 && b.res === 0) last.dur += b.dur;
+    else out.push({ ...b });
+  });
+  return out;
+}
+
 function renderIoSummary() {
   ioSummary.innerHTML = '';
   if (!ioTasks) return;
 
-  const resLine = document.createElement('div');
-  resLine.className = 'io-summary-resources';
-  resLine.textContent = `Recursos declarados: ${ioResourceNames.join(', ') || '(ninguno)'}`;
-  ioSummary.appendChild(resLine);
+  ioSummary.appendChild(buildDevicesBlock());
 
   ioTasks.forEach((t, i) => {
     const row = document.createElement('div');
@@ -131,7 +253,8 @@ function renderIoSummary() {
 
     const seq = document.createElement('span');
     seq.className = 'seq';
-    seq.appendChild(burstSeqText(t));
+    seq.appendChild(burstSeqText(t, i));
+    seq.appendChild(addIoControl(i));
 
     row.append(name, meta, seq);
     ioSummary.appendChild(row);
@@ -139,6 +262,21 @@ function renderIoSummary() {
 }
 
 ioSummary.addEventListener('input', (e) => {
+  if (e.target.dataset.deviceIdx !== undefined && ioTasks) {
+    const i = Number(e.target.dataset.deviceIdx);
+    const name = cleanDeviceName(e.target.value);
+    const clash = ioResourceNames.some((n, j) => j !== i && n.toLowerCase() === name.toLowerCase());
+    const bad = !name || /^cpu$/i.test(name) || /^\d+$/.test(name) || clash;
+    e.target.classList.toggle('invalid', bad);
+    if (bad) return;
+    ioResourceNames[i] = name;
+    ioSummary.querySelectorAll(`[data-res-label="${i + 1}"]`).forEach((el) => {
+      el.textContent = `${name} ${el.textContent.split(' ').pop()}`;
+    });
+    ioSummary.querySelectorAll('.io-add-sel').forEach((sel) => { sel.options[i].textContent = name; });
+    syncIoCode();
+    return;
+  }
   const field = e.target.dataset.ioField;
   if (!field || !ioTasks) return;
   const idx = Number(e.target.dataset.ioIdx);
@@ -152,6 +290,41 @@ ioSummary.addEventListener('input', (e) => {
     task[field] = isNaN(n) ? 0 : n;
   }
   codeInput.value = defTextFromIoTasks(ioTasks, ioResourceNames);
+});
+
+
+ioSummary.addEventListener('focusout', (e) => {
+  if (e.target.dataset.deviceIdx === undefined || !e.target.classList.contains('invalid')) return;
+  e.target.value = ioResourceNames[Number(e.target.dataset.deviceIdx)];
+  e.target.classList.remove('invalid');
+});
+
+ioSummary.addEventListener('click', (e) => {
+  const btn = e.target.closest('button');
+  if (!btn || !ioTasks) return;
+  const d = btn.dataset;
+  if (d.addDevice) {
+    ioResourceNames.push(nextDeviceName());
+  } else if (d.removeDevice !== undefined) {
+    const res = Number(d.removeDevice) + 1;
+    if (isDeviceUsed(res)) return;
+    ioResourceNames.splice(res - 1, 1);
+    ioTasks.forEach((t) => t.bursts.forEach((b) => { if (b.res > res) b.res -= 1; }));
+  } else if (d.addIo !== undefined) {
+    const t = ioTasks[Number(d.addIo)];
+    const sel = ioSummary.querySelector(`[data-add-io-sel="${d.addIo}"]`);
+    t.bursts.push({ res: Number(sel.value), dur: 2 }, { res: 0, dur: 1 });
+    t.usesResources = true;
+  } else if (d.removeBurst !== undefined) {
+    const t = ioTasks[Number(d.ioIdx)];
+    t.bursts.splice(Number(d.removeBurst), 1);
+    t.bursts = mergeAdjacentCpu(t.bursts);
+    t.usesResources = t.bursts.some((b) => b.res !== 0);
+  } else {
+    return;
+  }
+  renderIoSummary();
+  syncIoCode();
 });
 
 const modeIndicator = document.getElementById('modeIndicator');
