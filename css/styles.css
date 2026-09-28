@@ -471,11 +471,17 @@ button:focus-visible, select:focus-visible, input:focus-visible {
 }
 .error-msg.show { display: block; }
 
+/* El sticky va en un wrapper que NO es hijo directo del flex de .wrap:
+   Safari/WebKit tiene un bug conocido donde position:sticky no engancha
+   si el elemento sticky es hijo directo de un contenedor display:flex. */
+.mode-toggle-sticky-outer {
+  align-self: flex-start;
+}
 .mode-toggle-bar {
+  position: -webkit-sticky;
   position: sticky;
   top: 0.75rem;
   z-index: 15;
-  align-self: flex-start;
   display: flex;
   align-items: center;
   gap: 0.55rem;
