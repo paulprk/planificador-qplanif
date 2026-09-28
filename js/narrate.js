@@ -72,7 +72,8 @@ export function buildNarration({ procs, segments: rawSegments, finish, algo, qua
   procs.forEach((p) => { if (finish[p.id] > makespan) makespan = finish[p.id]; });
 
   const events = {};
-  const push = (t, kind, text, id) => { (events[t] = events[t] || []).push({ kind, text, id }); };
+  const cap = (x) => x.charAt(0).toUpperCase() + x.slice(1);
+  const push = (t, kind, text, id, why) => { (events[t] = events[t] || []).push({ kind, text, why: why || '', id }); };
 
   // Quiénes esperan a la CPU (res=0) o a un dispositivo (res>0) en el instante t, con su próximo tramo.
   const waiting = (t, res) => {
@@ -133,6 +134,8 @@ export function buildNarration({ procs, segments: rawSegments, finish, algo, qua
     return null;
   };
 
+  const retornoWhy = (p) => `Retorno = fin − llegada = ${finish[p.id]} − ${p.arrival} = ${finish[p.id] - p.arrival}.`;
+
   procs.forEach((p) => {
     push(p.arrival, 'arrive', `${p.name} llega y entra a la cola de listos.`, p.id);
   });
@@ -146,33 +149,33 @@ export function buildNarration({ procs, segments: rawSegments, finish, algo, qua
       // Salidas
       if (s.res === 0) {
         if (isLast) {
-          push(s.end, 'end', `${p.name} termina su ejecución en t=${finish[p.id]} (retorno = ${finish[p.id]} − ${p.arrival} = ${finish[p.id] - p.arrival}).`, p.id);
+          push(s.end, 'end', `${p.name} termina su ejecución en t=${finish[p.id]}.`, p.id, retornoWhy(p));
         } else if (next.res !== 0) {
-          push(s.end, 'burst-end', `${p.name} termina su ráfaga de CPU y pide ${resName(next.res)}.`, p.id);
-          if (next.start > s.end) push(s.end, 'blocked', `${resName(next.res)} está ocupado, así que ${p.name} espera en su cola.`, p.id);
+          push(s.end, 'burst-end', `${p.name} termina su ráfaga de CPU y pide ${resName(next.res)}.`, p.id, 'Mientras usa el dispositivo no necesita la CPU: queda libre para otro proceso.');
+          if (next.start > s.end) push(s.end, 'blocked', `${p.name} espera en la cola de ${resName(next.res)}.`, p.id, `${resName(next.res)} está ocupado y atiende a un proceso por vez.`);
         } else {
           const x = startsAt(s.end, 0);
-          let reason = 'deja la CPU y vuelve a la cola de listos.';
+          let reason = { main: 'deja la CPU y vuelve a la cola de listos.', why: '' };
           if (x && x.id !== p.id) {
             const xp = byId[x.id];
-            if (algo === 'rr') reason = `agota su quantum (${quantum}) y vuelve al final de la cola de listos.`;
-            else if (algo === 'srtf') reason = `es expropiado: ${xp.name} tiene menos tiempo restante (${x.rem} < ${next.rem}) y vuelve a la cola de listos.`;
-            else if (algo === 'pri_exp') reason = `es expropiado: ${xp.name} tiene mayor prioridad (${xp.priority} < ${p.priority}) y vuelve a la cola de listos.`;
+            if (algo === 'rr') reason = { main: 'agota su quantum y vuelve al final de la cola de listos.', why: `Usó ${quantum} unidades seguidas de CPU; ahora le toca al siguiente.` };
+            else if (algo === 'srtf') reason = { main: `es expropiado por ${xp.name} y vuelve a la cola de listos.`, why: `${xp.name} necesita menos tiempo de CPU que él (${x.rem} < ${next.rem}), así que le quita la CPU.` };
+            else if (algo === 'pri_exp') reason = { main: `es expropiado por ${xp.name} y vuelve a la cola de listos.`, why: `${xp.name} tiene mayor prioridad (${xp.priority} < ${p.priority}; el número más bajo es el más urgente).` };
             else if (algo === 'pri_rr') {
               reason = xp.priority < p.priority
-                ? `es expropiado: ${xp.name} tiene mayor prioridad (${xp.priority} < ${p.priority}) y vuelve a la cola de listos.`
-                : `agota su quantum (${quantum}) y vuelve al final de su cola de listos.`;
+                ? { main: `es expropiado por ${xp.name} y vuelve a la cola de listos.`, why: `${xp.name} tiene mayor prioridad (${xp.priority} < ${p.priority}; el número más bajo es el más urgente).` }
+                : { main: 'agota su quantum y vuelve al final de su cola de listos.', why: `Usó ${quantum} unidades seguidas de CPU; ahora le toca al siguiente de su misma prioridad.` };
             }
           }
-          push(s.end, 'preempt', `${p.name} ${reason}`, p.id);
+          push(s.end, 'preempt', `${p.name} ${reason.main}`, p.id, reason.why);
         }
       } else if (isLast) {
-        push(s.end, 'end', `${p.name} termina de usar ${R} y finaliza en t=${finish[p.id]} (retorno = ${finish[p.id]} − ${p.arrival} = ${finish[p.id] - p.arrival}).`, p.id);
+        push(s.end, 'end', `${p.name} termina de usar ${R} y finaliza en t=${finish[p.id]}.`, p.id, retornoWhy(p));
       } else if (next.res === 0) {
-        push(s.end, 'io-end', `${p.name} termina de usar ${R} y vuelve a la cola de listos.`, p.id);
+        push(s.end, 'io-end', `${p.name} termina de usar ${R} y vuelve a la cola de listos.`, p.id, 'Necesita CPU otra vez: espera su turno.');
       } else {
         push(s.end, 'io-end', `${p.name} termina de usar ${R} y pide ${resName(next.res)}.`, p.id);
-        if (next.start > s.end) push(s.end, 'blocked', `${resName(next.res)} está ocupado, así que ${p.name} espera en su cola.`, p.id);
+        if (next.start > s.end) push(s.end, 'blocked', `${p.name} espera en la cola de ${resName(next.res)}.`, p.id, `${resName(next.res)} está ocupado y atiende a un proceso por vez.`);
       }
     });
   });
@@ -180,9 +183,9 @@ export function buildNarration({ procs, segments: rawSegments, finish, algo, qua
   procs.forEach((p) => {
     segsOf[p.id].forEach((s) => {
       if (s.res === 0) {
-        push(s.start, 'cpu', `${p.name} pasa a la CPU: ${whyCpu(s.start, s)}`, p.id);
+        push(s.start, 'cpu', `${p.name} pasa a la CPU.`, p.id, cap(whyCpu(s.start, s)));
       } else {
-        push(s.start, 'io', `${p.name} empieza a usar ${resName(s.res)}: ${whyDevice(s.start, s)}`, p.id);
+        push(s.start, 'io', `${p.name} empieza a usar ${resName(s.res)}.`, p.id, cap(whyDevice(s.start, s)));
       }
     });
   });
@@ -209,7 +212,22 @@ export function buildNarration({ procs, segments: rawSegments, finish, algo, qua
     return { running, readyIds, devWaiting };
   }
 
-  return { events, stateAt, makespan };
+  function locationsAt(t) {
+    const loc = {};
+    procs.forEach((p) => {
+      if (t < p.arrival) loc[p.id] = 'pre';
+      else if (t >= finish[p.id]) loc[p.id] = 'done';
+      else loc[p.id] = 'ready';
+    });
+    if (t < makespan) {
+      const st = stateAt(t);
+      st.running.forEach((r, i) => { if (r) loc[r.id] = i === 0 ? 'cpu' : `dev${i}`; });
+      st.devWaiting.forEach((ids, i) => ids.forEach((id) => { loc[id] = `dq${i + 1}`; }));
+    }
+    return loc;
+  }
+
+  return { events, stateAt, locationsAt, makespan };
 }
 
 // --- Panel ---
@@ -234,11 +252,20 @@ function chip(procs, id, extra) {
 
 function eventText(li, ev) {
   const p = ev.id != null ? data.procs.find((x) => x.id === ev.id) : null;
-  if (!p) { li.textContent = ev.text; return; }
-  li.style.borderLeftColor = `var(--${colorFor(data.procs, p.id)})`;
-  if (ev.text.startsWith(`${p.name} `)) {
-    li.append(chip(data.procs, p.id, '').firstChild, document.createTextNode(` ${ev.text}`));
-  } else li.textContent = ev.text;
+  const main = document.createElement('span');
+  main.className = 'nar-main';
+  if (p) {
+    li.style.borderLeftColor = `var(--${colorFor(data.procs, p.id)})`;
+    if (ev.text.startsWith(`${p.name} `)) main.append(dot(data.procs, p.id), document.createTextNode(` ${ev.text}`));
+    else main.textContent = ev.text;
+  } else main.textContent = ev.text;
+  li.appendChild(main);
+  if (ev.why) {
+    const why = document.createElement('span');
+    why.className = 'nar-why';
+    why.textContent = ev.why;
+    li.appendChild(why);
+  }
 }
 
 function stateRow(label, nodes) {
@@ -289,6 +316,115 @@ export function setNarrationData(input, seek) {
   }
 }
 
+
+// --- Mapa (opcional) ---
+
+let mapOpen = false;
+try { mapOpen = localStorage.getItem('qp.map') === '1'; } catch (e) { /* sin storage */ }
+
+function mapBox(title, chips, cls) {
+  const box = document.createElement('div');
+  box.className = `map-box ${cls || ''}`;
+  const h = document.createElement('div');
+  h.className = 'map-title';
+  h.textContent = title;
+  const body = document.createElement('div');
+  body.className = 'map-body';
+  if (chips.length === 0) {
+    const e = document.createElement('span');
+    e.className = 'nar-empty';
+    e.textContent = 'vacía';
+    body.appendChild(e);
+  } else chips.forEach((c) => body.appendChild(c));
+  box.append(h, body);
+  return box;
+}
+
+function arrow(text) {
+  const a = document.createElement('span');
+  a.className = 'map-arrow';
+  a.textContent = text;
+  a.setAttribute('aria-hidden', 'true');
+  return a;
+}
+
+function renderMap(t) {
+  const host = document.getElementById('narrationMap');
+  if (!host) return;
+  host.hidden = !mapOpen;
+  if (!mapOpen) return;
+  host.innerHTML = '';
+
+  const now = data.locationsAt(t);
+  const before = t > 0 ? data.locationsAt(t - 1) : null;
+  const labels = data.resourceLabels || ['CPU'];
+  const mk = (id) => {
+    const c = chip(data.procs, id);
+    if (before && before[id] !== now[id] && before[id] !== 'pre') c.classList.add('moved');
+    if (before && before[id] === 'pre' && now[id] !== 'pre') c.classList.add('moved');
+    return c;
+  };
+  const at = (key) => data.procs.filter((p) => now[p.id] === key).map((p) => mk(p.id));
+
+  const flow = document.createElement('div');
+  flow.className = 'map-flow';
+  flow.append(
+    mapBox('Todavía no llegaron', at('pre'), 'map-muted'),
+    arrow('→'),
+    mapBox('Cola de listos', at('ready')),
+    arrow('→'),
+    mapBox('CPU', at('cpu'), 'map-cpu'),
+    arrow('→'),
+    mapBox('Terminaron', at('done'), 'map-muted')
+  );
+  host.appendChild(flow);
+
+  if (labels.length > 1) {
+    const io = document.createElement('div');
+    io.className = 'map-io';
+    const cap = document.createElement('div');
+    cap.className = 'map-io-cap';
+    cap.textContent = 'Cuando un proceso pide E/S deja la CPU, pasa por la cola del dispositivo, lo usa, y después vuelve a la cola de listos.';
+    io.appendChild(cap);
+    for (let i = 1; i < labels.length; i++) {
+      const row = document.createElement('div');
+      row.className = 'map-flow';
+      row.append(
+        mapBox(`Cola de ${labels[i]}`, at(`dq${i}`)),
+        arrow('→'),
+        mapBox(labels[i], at(`dev${i}`), 'map-dev'),
+        arrow('↩ vuelve a listos')
+      );
+      io.appendChild(row);
+    }
+    host.appendChild(io);
+  }
+
+  const note = document.createElement('div');
+  note.className = 'map-note';
+  note.textContent = 'Las fichas con borde marcado son las que cambiaron de lugar en este instante.';
+  host.appendChild(note);
+}
+
+function syncMapToggle() {
+  const btn = document.getElementById('mapToggle');
+  if (!btn) return;
+  btn.textContent = mapOpen ? 'Cerrar mapa' : 'Abrir mapa';
+  btn.setAttribute('aria-expanded', String(mapOpen));
+}
+
+export function initNarrationMap(getT) {
+  const btn = document.getElementById('mapToggle');
+  if (!btn) return;
+  syncMapToggle();
+  btn.addEventListener('click', () => {
+    mapOpen = !mapOpen;
+    try { localStorage.setItem('qp.map', mapOpen ? '1' : '0'); } catch (e) { /* sin storage */ }
+    syncMapToggle();
+    renderNarrationAt(getT());
+  });
+}
+
 export function renderNarrationAt(t) {
   if (!data) return;
   document.getElementById('narrationT').textContent = `Instante ${t}`;
@@ -308,9 +444,10 @@ export function renderNarrationAt(t) {
     ul.appendChild(li);
   });
 
+  renderMap(t);
   const box = document.getElementById('narrationState');
   box.innerHTML = '';
-  if (t >= data.makespan) {
+  if (t >= data.makespan || mapOpen) {
     box.hidden = true;
   } else {
     box.hidden = false;

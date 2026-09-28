@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Planificador de CPU</title>
   <meta name="description" content="Simulador de algoritmos de planificación de CPU (FCFS, SJF, SRTF, Round Robin, Prioridades) con diagrama de Gantt animado.">
-  <link rel="stylesheet" href="css/styles.css?v=12">
+  <link rel="stylesheet" href="css/styles.css?v=13">
   <script>
     try {
       var savedTheme = localStorage.getItem('planificador-cpu-theme');
@@ -209,7 +209,9 @@
         <div class="narration-head">
           <h3>Qué pasa en este instante</h3>
           <span class="narration-t" id="narrationT"></span>
+          <button type="button" class="map-toggle" id="mapToggle" aria-expanded="false" aria-controls="narrationMap">Abrir mapa</button>
         </div>
+        <div class="narration-map" id="narrationMap" hidden></div>
         <ul class="narration-events" id="narrationEvents"></ul>
         <div class="narration-state" id="narrationState"></div>
         <details class="narration-log">

@@ -10,7 +10,7 @@
 import { PALETTE, colorFor } from './colors.js';
 import { setReadyQueueData, renderReadyQueueAt } from './readyqueue.js';
 import { stateIntervals } from './metrics.js';
-import { setNarrationData, renderNarrationAt } from './narrate.js';
+import { setNarrationData, renderNarrationAt, initNarrationMap } from './narrate.js';
 
 const ganttTrack = document.getElementById('ganttTrack');
 const ganttAxis = document.getElementById('ganttAxis');
@@ -401,6 +401,7 @@ export function renderSimulation({ procs, segments, finish, labelText, showPrior
 }
 
 export function initPlayback() {
+  initNarrationMap(() => currentInstant);
   try {
     const saved = localStorage.getItem(SPEED_KEY);
     if (saved && [...speedSel.options].some((o) => o.value === saved)) speedSel.value = saved;
