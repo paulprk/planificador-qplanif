@@ -22,6 +22,28 @@ Si no podés leer alguna fila con confianza, omitila en vez de inventar un valor
 const RETRYABLE_STATUS = new Set([429, 500, 503]);
 const MAX_ATTEMPTS = 3;
 
+// Límite simple por IP para que nadie le pegue directo a este endpoint (sin
+// pasar por la página) y agote la cuota de la API key. Vive en memoria, así
+// que se reinicia si la función "se enfría" — no es perfecto, pero alcanza
+// para frenar el abuso casual de un proyecto personal.
+const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
+const RATE_LIMIT_MAX = 8;
+const requestLog = new Map();
+
+function getClientIp(req) {
+  const fwd = req.headers['x-forwarded-for'];
+  if (fwd) return fwd.split(',')[0].trim();
+  return req.socket?.remoteAddress || 'unknown';
+}
+
+function isRateLimited(ip) {
+  const now = Date.now();
+  const recent = (requestLog.get(ip) || []).filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
+  recent.push(now);
+  requestLog.set(ip, recent);
+  return recent.length > RATE_LIMIT_MAX;
+}
+
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -46,6 +68,11 @@ async function callGeminiWithRetry(url, body) {
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     res.status(405).json({ ok: false, error: 'Método no permitido.' });
+    return;
+  }
+
+  if (isRateLimited(getClientIp(req))) {
+    res.status(429).json({ ok: false, error: 'Demasiados pedidos desde esta conexión. Esperá unos minutos y probá de nuevo.' });
     return;
   }
 
