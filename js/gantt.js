@@ -9,6 +9,8 @@
  */
 import { PALETTE, colorFor } from './colors.js';
 import { setReadyQueueData, renderReadyQueueAt } from './readyqueue.js';
+import { stateIntervals } from './metrics.js';
+import { setNarrationData, renderNarrationAt } from './narrate.js';
 
 const ganttTrack = document.getElementById('ganttTrack');
 const ganttAxis = document.getElementById('ganttAxis');
@@ -99,6 +101,7 @@ function setInstant(t) {
   instantLabelEl.textContent = `Instante: ${currentInstant} / ${maxInstant}`;
   updateReveal(currentInstant);
   renderReadyQueueAt(currentInstant);
+  renderNarrationAt(currentInstant);
 }
 
 function startPlayback() {
@@ -214,19 +217,6 @@ function buildSingleTrack(procs, segments, maxEnd, unitPx, resourceLabels) {
     tick.textContent = t;
     ganttAxis.appendChild(tick);
   }
-}
-
-/** Estados de un proceso entre su llegada y su fin, derivados de sus segmentos. */
-function stateIntervals(p, segments) {
-  const mine = segments.filter((s) => s.id === p.id).sort((a, b) => a.start - b.start);
-  const out = [];
-  let cursor = p.arrival;
-  mine.forEach((s) => {
-    if (s.start > cursor) out.push({ kind: !s.res ? 'wait-cpu' : 'wait-dev', start: cursor, end: s.start, res: s.res || 0 });
-    out.push({ kind: !s.res ? 'cpu' : 'io', start: s.start, end: s.end, res: s.res || 0 });
-    cursor = s.end;
-  });
-  return out;
 }
 
 const STATE_TEXT = { cpu: 'usa la CPU', io: 'usa', 'wait-dev': 'espera a', 'wait-cpu': 'espera la CPU' };
@@ -381,7 +371,7 @@ function updateViewAvailability(resourceLabels) {
 }
 
 /** Pinta un nuevo resultado de simulación y arranca la reproducción desde el instante 0. */
-export function renderSimulation({ procs, segments, finish, labelText, showPriority, quantumText, algo, readyLog, resourceLabels }) {
+export function renderSimulation({ procs, segments, finish, labelText, showPriority, quantumText, algo, readyLog, resourceLabels, resourceAlgo }) {
   pausePlayback();
   lastProcs = procs;
   lastSegments = segments;
@@ -392,6 +382,12 @@ export function renderSimulation({ procs, segments, finish, labelText, showPrior
   updateViewAvailability(lastResourceLabels);
 
   setReadyQueueData({ algo, procs, segments, finish, readyLog, ioMode: Boolean(resourceLabels), resourceLabels });
+  setNarrationData({
+    procs, segments, finish, algo,
+    quantum: quantumText ? parseInt(quantumText, 10) : null,
+    resourceAlgo: resourceLabels ? resourceAlgo : null,
+    resourceLabels: resourceLabels || null
+  }, (t) => { pausePlayback(); setInstant(t); });
   algoLabelEl.textContent = labelText;
 
   maxInstant = 0;

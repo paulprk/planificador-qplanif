@@ -20,6 +20,36 @@ const CONTENT = {
     body: 'De ese tiempo total, cuánto pasó el proceso esperando en la cola de listos sin usar la CPU.',
     formula: 'TE = TR − Ráfaga'
   },
+  'te-io': {
+    title: 'TE — Tiempo de Espera (modo E/S)',
+    body: 'Todo el tiempo del proceso que no fue CPU: incluye la espera en la cola de listos, la espera en la cola de cada dispositivo y el tiempo usando los dispositivos. Para ver cada parte por separado mirá las columnas de al lado.',
+    formula: 'TE = TR − ráfagas de CPU'
+  },
+  wcpu: {
+    title: 'Espera CPU',
+    body: 'Tiempo que el proceso estuvo listo pero sin CPU: esperando su turno en la cola de listos (incluye las veces que lo sacaron de la CPU antes de terminar la ráfaga).',
+    formula: ''
+  },
+  wdev: {
+    title: 'Espera E/S',
+    body: 'Tiempo que el proceso estuvo bloqueado haciendo cola porque el dispositivo que necesitaba estaba ocupado con otro proceso.',
+    formula: ''
+  },
+  uio: {
+    title: 'Usa E/S',
+    body: 'Tiempo que el proceso estuvo efectivamente usando dispositivos de E/S (sin contar la espera en cola).',
+    formula: ''
+  },
+  ucpu: {
+    title: 'Uso de la CPU',
+    body: 'Porcentaje del tiempo total de la simulación en que la CPU estuvo ejecutando algún proceso. Si es menor a 100% hubo momentos en que no había ningún proceso listo.',
+    formula: 'Uso = tiempo ocupada / tiempo total'
+  },
+  udev: {
+    title: 'Uso del dispositivo',
+    body: 'Porcentaje del tiempo total de la simulación en que ese dispositivo estuvo atendiendo a algún proceso.',
+    formula: 'Uso = tiempo ocupado / tiempo total'
+  },
   tpr: {
     title: 'TPR — Tiempo Promedio de Retorno',
     body: 'El promedio del TR de todos los procesos del lote. Sirve para comparar qué tan rápido responde el algoritmo en general.',
@@ -66,10 +96,12 @@ function fillContent(btn) {
   titleEl.textContent = data.title;
   bodyEl.innerHTML = '';
   bodyEl.append(document.createTextNode(data.body));
-  const formula = document.createElement('span');
-  formula.className = 'formula';
-  formula.textContent = data.formula;
-  bodyEl.append(document.createElement('br'), formula);
+  if (data.formula) {
+    const formula = document.createElement('span');
+    formula.className = 'formula';
+    formula.textContent = data.formula;
+    bodyEl.append(document.createElement('br'), formula);
+  }
   return true;
 }
 

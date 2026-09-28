@@ -299,10 +299,10 @@ function remainingAt(procs, segments, id, t) {
 }
 
 const READY_SORT_KEY = {
-  fcfs: (p) => [p.arrival, p.order],
-  sjf: (p) => [p.burst, p.arrival, p.order],
-  pri: (p) => [p.priority, p.arrival, p.order],
-  pri_exp: (p) => [p.priority, p.arrival, p.order]
+  fcfs: (p, entry) => [entry, p.order],
+  sjf: (p, entry) => [p.burst, entry, p.order],
+  pri: (p, entry) => [p.priority, entry, p.order],
+  pri_exp: (p, entry) => [p.priority, entry, p.order]
 };
 
 /**
@@ -331,9 +331,13 @@ export function readyQueueAt(algo, procs, segments, finish, readyLog, t) {
     return f === undefined || f > t;
   });
 
+  // Instante en que el proceso entró a la cola: su llegada, o el último momento en que dejó la CPU.
+  const entryTime = (p) => segments.reduce(
+    (acc, s) => (s.id === p.id && s.end <= t && s.end > acc ? s.end : acc), p.arrival
+  );
   const keyFn = algo === 'srtf'
-    ? (p) => [remainingAt(procs, segments, p.id, t), p.arrival, p.order]
-    : (READY_SORT_KEY[algo] || ((p) => [p.arrival, p.order]));
+    ? (p) => [remainingAt(procs, segments, p.id, t), entryTime(p), p.order]
+    : (p) => (READY_SORT_KEY[algo] || READY_SORT_KEY.fcfs)(p, entryTime(p));
 
   eligible.sort((a, b) => {
     const ka = keyFn(a);

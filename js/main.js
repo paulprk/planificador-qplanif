@@ -16,6 +16,7 @@ import { parseDefText, defTextFromIoTasks } from './parser.js';
 import { loadDefault, readProcesses, addDefaultRow, replaceRows, setPriorityColumnVisible } from './table.js';
 import { initPlayback, renderSimulation } from './gantt.js';
 import { renderResults } from './results.js';
+import { computeMetrics } from './metrics.js';
 import { initCodePreview, setCodePreviewEnabled } from './codepreview.js';
 import { simulateWithResources } from './iosim.js';
 import { PALETTE } from './colors.js';
@@ -259,7 +260,8 @@ function runSimulation() {
   const needsQuantum = algo === 'rr' || algo === 'pri_rr';
   const labelText = ALGO_NAMES[algo] + (needsQuantum ? ` · quantum = ${quantumInput.value}` : '');
 
-  renderResults(procs, result.finish);
+  const metrics = computeMetrics({ procs, segments: result.segments, finish: result.finish });
+  renderResults(procs, result.finish, metrics, null);
   renderSimulation({
     procs,
     segments: result.segments,
@@ -303,7 +305,10 @@ function runIoSimulation() {
     + (needsQuantum ? ` · quantum = ${quantumInput.value}` : '')
     + ` · E/S: ${RESOURCE_ALGO_NAMES[resourceAlgo]}`;
 
-  renderResults(procsForResults, result.finish);
+  const metrics = computeMetrics({
+    procs: procsForResults, segments: result.segments, finish: result.finish, numResources: ioResourceNames.length
+  });
+  renderResults(procsForResults, result.finish, metrics, result.resources);
   renderSimulation({
     procs: procsForResults,
     segments: result.segments,
@@ -313,7 +318,8 @@ function runIoSimulation() {
     quantumText: needsQuantum ? quantumInput.value : null,
     algo,
     readyLog: result.readyLog,
-    resourceLabels: result.resources
+    resourceLabels: result.resources,
+    resourceAlgo
   });
 }
 

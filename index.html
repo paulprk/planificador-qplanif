@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Planificador de CPU</title>
   <meta name="description" content="Simulador de algoritmos de planificación de CPU (FCFS, SJF, SRTF, Round Robin, Prioridades) con diagrama de Gantt animado.">
-  <link rel="stylesheet" href="css/styles.css?v=7">
+  <link rel="stylesheet" href="css/styles.css?v=8">
   <script>
     try {
       var savedTheme = localStorage.getItem('planificador-cpu-theme');
@@ -205,21 +205,29 @@
       </div>
       <div class="legend" id="legend"></div>
       <div id="readyQueueWrap"></div>
+      <div class="narration" id="narration">
+        <div class="narration-head">
+          <h3>Qué pasa en este instante</h3>
+          <span class="narration-t" id="narrationT"></span>
+        </div>
+        <ul class="narration-events" id="narrationEvents"></ul>
+        <div class="narration-state" id="narrationState"></div>
+        <details class="narration-log">
+          <summary>Ver la bitácora completa</summary>
+          <ol id="narrationLog"></ol>
+        </details>
+      </div>
     </section>
 
     <section class="panel" id="resultsPanel">
       <h2><span class="num">04</span> TR, TE y promedios</h2>
       <div class="stats-grid" id="statsGrid"></div>
-      <table class="results-table">
-        <thead>
-          <tr>
-            <th>Proceso</th><th>Llegada</th><th>Ráfaga</th><th>Fin</th>
-            <th>TR <button type="button" class="info-btn" data-info-key="tr" aria-label="Qué es TR">?</button></th>
-            <th>TE <button type="button" class="info-btn" data-info-key="te" aria-label="Qué es TE">?</button></th>
-          </tr>
-        </thead>
-        <tbody id="resultsBody"></tbody>
-      </table>
+      <div class="table-scroll">
+        <table class="results-table">
+          <thead><tr id="resultsHead"></tr></thead>
+          <tbody id="resultsBody"></tbody>
+        </table>
+      </div>
     </section>
   </div>
 
