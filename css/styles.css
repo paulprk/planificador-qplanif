@@ -17,7 +17,7 @@
   --danger-soft: #FFE2E0;
   --grid-line: #E5E5EA;
   --panel-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 0 0 0.5px rgba(0, 0, 0, 0.04);
-  --glass: rgba(255, 255, 255, 0.72);
+  --glass: rgba(255, 255, 255, 0.55);
   --glass-line: rgba(60, 60, 67, 0.14);
   --font-display: ui-monospace, 'SF Mono', 'SFMono-Regular', Menlo, Consolas, monospace;
   --font-body: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
@@ -51,7 +51,7 @@
     --danger-soft: #3A1D1B;
     --grid-line: #2C2C2E;
     --panel-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
-    --glass: rgba(28, 28, 30, 0.72);
+    --glass: rgba(28, 28, 30, 0.55);
     --glass-line: rgba(255, 255, 255, 0.1);
     --p0: #30D158; --p0-soft: #1E3324; /* systemGreen */
     --p1: #BF5AF2; --p1-soft: #3A2740; /* systemPurple */
@@ -70,7 +70,7 @@
   --running: #FF9F0A; --running-soft: #3A2A11;
   --danger: #FF453A; --danger-soft: #3A1D1B; --grid-line: #2C2C2E;
   --panel-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
-  --glass: rgba(28, 28, 30, 0.72); --glass-line: rgba(255, 255, 255, 0.1);
+  --glass: rgba(28, 28, 30, 0.55); --glass-line: rgba(255, 255, 255, 0.1);
   --p0: #30D158; --p0-soft: #1E3324; --p1: #BF5AF2; --p1-soft: #3A2740;
   --p2: #5E5CE6; --p2-soft: #26253F; --p3: #66D4CF; --p3-soft: #1B3A38;
   --p4: #FF375F; --p4-soft: #3B2029; --p5: #40C8E0; --p5-soft: #1C333B;
@@ -492,9 +492,6 @@ button:focus-visible, select:focus-visible, input:focus-visible {
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.1);
   -webkit-backdrop-filter: blur(20px) saturate(1.8);
   backdrop-filter: blur(20px) saturate(1.8);
-}
-@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .mode-toggle-bar { background: var(--surface); }
 }
 .mode-toggle-label {
   padding-left: 0.25rem;
