@@ -12,11 +12,10 @@
  * se pasa a modo simple y se vuelve. "Restaurar ejemplo" sí resetea todo.
  */
 import { PRIORITY_ALGOS, ALGO_NAMES, runAlgorithm } from './algorithms.js';
-import { parseDefText } from './parser.js';
+import { parseDefText, defTextFromIoTasks } from './parser.js';
 import { loadDefault, readProcesses, addDefaultRow, replaceRows, setPriorityColumnVisible } from './table.js';
 import { initPlayback, renderSimulation } from './gantt.js';
 import { renderResults } from './results.js';
-import { initImageImport } from './imageimport.js';
 import { initCodePreview, setCodePreviewEnabled } from './codepreview.js';
 import { simulateWithResources } from './iosim.js';
 import { PALETTE } from './colors.js';
@@ -127,7 +126,9 @@ function setMode(newMode) {
   setCodePreviewEnabled(!isIo);
   if (isIo) {
     renderIoSummary();
-    if (!ioTasks) {
+    if (ioTasks) {
+      codeInput.value = defTextFromIoTasks(ioTasks, ioResourceNames);
+    } else {
       codeBox.hidden = false;
       codeInput.focus();
     }
@@ -284,7 +285,6 @@ resourceAlgoSel.addEventListener('change', () => { if (mode === 'io') runSimulat
 
 // --- Arranque ---
 initPlayback();
-initImageImport();
 loadDefault();
 initCodePreview();
 updateFieldVisibility();

@@ -68,3 +68,15 @@ export function defTextFromProcesses(procs) {
     .map((p) => `TAREA "${p.name}" INICIO=${p.arrival} PRIORIDAD=${p.priority} [CPU,${p.burst}]`)
     .join('\n');
 }
+
+/** El inverso de parseDefText para lotes de E/S (tareas con ráfagas alternadas CPU/recurso). */
+export function defTextFromIoTasks(tasks, resourceNames) {
+  const resLines = resourceNames.map((name) => `RECURSO "${name}"`);
+  const taskLines = tasks.map((t) => {
+    const brackets = t.bursts
+      .map((b) => (b.res === 0 ? `[CPU,${b.dur}]` : `[${resourceNames[b.res - 1]},${b.dur}]`))
+      .join(' ');
+    return `TAREA "${t.name}" INICIO=${t.arrival} PRIORIDAD=${t.priority} ${brackets}`;
+  });
+  return [...resLines, ...taskLines].join('\n');
+}
