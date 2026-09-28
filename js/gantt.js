@@ -269,6 +269,26 @@ function updateReveal(revealUpTo) {
   }
 }
 
+/**
+ * "Vista única" solo tiene sentido cuando nunca hay dos cosas corriendo a la
+ * vez (modo simple: una sola CPU). En modo E/S puede haber una tarea en la
+ * CPU y otra en un recurso al mismo tiempo, y esa vista las mete en la misma
+ * fila — los segmentos se superponen visualmente. Se oculta el botón ahí y,
+ * si estaba activa, se fuerza a "Vista por recurso".
+ */
+function updateViewAvailability(resourceLabels) {
+  const singleBtn = document.querySelector('.view-btn[data-view="single"]');
+  if (!singleBtn) return;
+  const isIo = Boolean(resourceLabels);
+  singleBtn.hidden = isIo;
+  if (isIo && viewMode === 'single') {
+    viewMode = 'lanes';
+    document.querySelectorAll('.view-btn').forEach((b) => b.classList.toggle('active', b.dataset.view === 'lanes'));
+    singleWrap.hidden = true;
+    lanesWrap.hidden = false;
+  }
+}
+
 /** Pinta un nuevo resultado de simulación y arranca la reproducción desde el instante 0. */
 export function renderSimulation({ procs, segments, finish, labelText, showPriority, quantumText, algo, readyLog, resourceLabels }) {
   pausePlayback();
@@ -277,6 +297,7 @@ export function renderSimulation({ procs, segments, finish, labelText, showPrior
   lastShowPriority = showPriority;
   lastQuantumText = quantumText;
   lastResourceLabels = resourceLabels || null;
+  updateViewAvailability(lastResourceLabels);
 
   setReadyQueueData({ algo, procs, segments, finish, readyLog, ioMode: Boolean(resourceLabels), resourceLabels });
   algoLabelEl.textContent = labelText;
