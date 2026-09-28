@@ -1,14 +1,42 @@
 /**
  * Parser del formato de tareas `.def` de qplanif, por ejemplo:
  *
- *   TAREA "1" INICIO=0 PRIORIDAD=2 [CPU,7]
+ *   RECURSO "R1"
+ *   TAREA "1" INICIO=0 PRIORIDAD=2 [CPU,7] [R1,3] [CPU,2]
  *   TAREA "2" INICIO=0 [CPU,15]
  *
- * Solo se admiten ráfagas de CPU (`[CPU,n]`); las referencias a otros recursos
- * (E/S) se detectan pero se ignoran, ya que el simulador todavía no las soporta.
+ * Cada tarea es una secuencia de ráfagas alternadas: `[CPU,n]` ocupa la CPU,
+ * y `[recurso,n]` (por nombre declarado con RECURSO, o por índice 1..N)
+ * ocupa ese dispositivo de E/S. Si el texto no declara ningún recurso ni
+ * hace referencia a uno, el resultado es el mismo lote "solo CPU" de
+ * siempre.
  */
 export function parseDefText(text) {
   const clean = text.split('\n').map((l) => l.replace(/#.*/, '')).join('\n');
+
+  const resourceNames = [];
+  const resourceDeclRe = /\bRECURSO\s+"([^"]*)"/gi;
+  let rm;
+  while ((rm = resourceDeclRe.exec(clean))) {
+    resourceNames.push(rm[1]);
+  }
+
+  function resourceIndex(label) {
+    const trimmed = label.trim();
+    if (/^CPU$/i.test(trimmed)) return 0;
+    const asNum = Number(trimmed);
+    if (Number.isInteger(asNum) && asNum >= 1) {
+      while (resourceNames.length < asNum) resourceNames.push(`R${resourceNames.length + 1}`);
+      return asNum;
+    }
+    let idx = resourceNames.findIndex((n) => n.toLowerCase() === trimmed.toLowerCase());
+    if (idx === -1) {
+      resourceNames.push(trimmed);
+      idx = resourceNames.length - 1;
+    }
+    return idx + 1;
+  }
+
   const blocks = clean.split(/\bTAREA\b/i).slice(1);
   const tasks = [];
 
@@ -20,28 +48,21 @@ export function parseDefText(text) {
     const arrival = inicioM ? parseInt(inicioM[1], 10) : 0;
     const priority = prioM ? parseInt(prioM[1], 10) : i + 1;
 
-    let burst = 0;
-    let hasCpu = false;
-    let hasOther = false;
+    const bursts = [];
     const re = /\[\s*([^,\]]+)\s*,\s*(\d+)\s*\]/g;
     let m;
     while ((m = re.exec(block))) {
-      const resource = m[1].trim();
-      const dur = parseInt(m[2], 10);
-      if (/^CPU$/i.test(resource)) {
-        burst += dur;
-        hasCpu = true;
-      } else {
-        hasOther = true;
-      }
+      bursts.push({ res: resourceIndex(m[1]), dur: parseInt(m[2], 10) });
     }
-    tasks.push({ name, arrival, priority, burst, hasCpu, hasOther });
+    const hasCpu = bursts.some((b) => b.res === 0);
+    const usesResources = bursts.some((b) => b.res !== 0);
+    tasks.push({ name, arrival, priority, bursts, hasCpu, usesResources });
   });
 
-  return tasks;
+  return { tasks, resourceNames };
 }
 
-/** El inverso de parseDefText: arma el texto .def equivalente a un lote de procesos. */
+/** El inverso de parseDefText para lotes simples (una sola ráfaga de CPU por proceso). */
 export function defTextFromProcesses(procs) {
   return procs
     .map((p) => `TAREA "${p.name}" INICIO=${p.arrival} PRIORIDAD=${p.priority} [CPU,${p.burst}]`)

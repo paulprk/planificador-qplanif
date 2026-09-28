@@ -11,6 +11,11 @@
  * lo carga con "Cargar código" — ese mismo "Cargar código" dispara igual el
  * MutationObserver de #procBody y vuelve a sincronizar el textarea con lo
  * que efectivamente quedó cargado.
+ *
+ * En modo E/S (tareas con recursos, ver main.js) la tabla simple no se
+ * toca, así que este módulo se desactiva por completo — si no, el próximo
+ * blur del textarea pisaría el código de E/S recién cargado con la
+ * representación de la tabla simple desactualizada.
  */
 import { readProcesses } from './table.js';
 import { defTextFromProcesses } from './parser.js';
@@ -18,10 +23,17 @@ import { defTextFromProcesses } from './parser.js';
 const procBody = document.getElementById('procBody');
 const codeInput = document.getElementById('codeInput');
 
+let enabled = true;
+
 function render() {
-  if (document.activeElement === codeInput) return;
+  if (!enabled || document.activeElement === codeInput) return;
   const procs = readProcesses();
   codeInput.value = procs.length ? defTextFromProcesses(procs) : '';
+}
+
+export function setCodePreviewEnabled(value) {
+  enabled = value;
+  if (enabled) render();
 }
 
 export function initCodePreview() {

@@ -501,6 +501,52 @@ button:focus-visible, select:focus-visible, input:focus-visible {
 }
 .error-msg.show { display: block; }
 
+.io-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.6rem;
+}
+.io-summary-resources {
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+}
+.io-task {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.5rem 0.7rem;
+  background: var(--surface-2);
+  border-radius: 8px;
+  font-size: 0.82rem;
+}
+.io-task .name-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-family: var(--font-display);
+  font-weight: 600;
+  color: var(--ink);
+}
+.io-task .meta { color: var(--ink-soft); }
+.io-task .seq {
+  font-family: var(--font-display);
+  color: var(--ink-soft);
+}
+.io-task .seq b { color: var(--ink); font-weight: 600; }
+
+.io-badge {
+  margin: 0.7rem 0 0;
+  padding: 0.55rem 0.75rem;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-radius: 8px;
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+.io-badge[hidden] { display: none; }
+
 /* Gantt — vista única */
 .gantt-scroll {
   overflow-x: auto;

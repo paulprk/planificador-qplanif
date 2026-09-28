@@ -91,6 +91,7 @@
         </thead>
         <tbody id="procBody"></tbody>
       </table>
+      <div class="io-summary" id="ioSummary" hidden></div>
       <div class="table-actions">
         <button id="addRow" type="button">+ Agregar proceso</button>
         <button id="resetRows" type="button">Restaurar ejemplo</button>
@@ -131,9 +132,18 @@
           <label for="quantum">Quantum</label>
           <input type="number" id="quantum" min="1" value="2" class="num-cell" style="width:5rem">
         </div>
+        <div class="field" id="resourceAlgoField" hidden>
+          <label for="resourceAlgo">Algoritmo de las colas de E/S</label>
+          <select id="resourceAlgo">
+            <option value="fcfs">FCFS</option>
+            <option value="sjf">SJF</option>
+            <option value="pri">Prioridades (no expulsivo)</option>
+          </select>
+        </div>
         <button class="primary" id="simBtn" type="button" style="height:2.15rem">Simular</button>
       </div>
       <p style="margin:0;font-size:0.78rem;color:var(--ink-soft)">Prioridad: menor número = mayor prioridad. Se ignora en FCFS, SJF y SRTF.</p>
+      <p class="io-badge" id="ioBadge" hidden>Modo E/S: cargaste tareas con recursos además de CPU. La tabla de arriba queda fija — editá desde "Ver / cargar código". "Restaurar ejemplo" vuelve al modo simple.</p>
       <div class="error-msg" id="errMsg"></div>
     </section>
 

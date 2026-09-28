@@ -13,17 +13,27 @@ let lastProcs = null;
 let lastSegments = [];
 let lastFinish = {};
 let lastReadyLog = null;
+let lastIoMode = false;
 
-export function setReadyQueueData({ algo, procs, segments, finish, readyLog }) {
+export function setReadyQueueData({ algo, procs, segments, finish, readyLog, ioMode }) {
   lastAlgo = algo;
   lastProcs = procs;
   lastSegments = segments;
   lastFinish = finish;
   lastReadyLog = readyLog ?? null;
+  lastIoMode = Boolean(ioMode);
 }
 
 export function renderReadyQueueAt(t) {
   if (!lastProcs) return;
+  if (lastIoMode) {
+    itemsEl.innerHTML = '';
+    const note = document.createElement('span');
+    note.className = 'ready-queue-empty';
+    note.textContent = 'no disponible en modo E/S (hay una cola por cada recurso)';
+    itemsEl.appendChild(note);
+    return;
+  }
   const queue = readyQueueAt(lastAlgo, lastProcs, lastSegments, lastFinish, lastReadyLog, t);
 
   itemsEl.innerHTML = '';

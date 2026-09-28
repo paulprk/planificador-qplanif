@@ -43,6 +43,7 @@ let lastProcs = null;
 let lastSegments = [];
 let lastShowPriority = false;
 let lastQuantumText = null;
+let lastResourceLabels = null; // null = modo simple (lanes = procesos); array = modo E/S (lanes = recursos)
 
 let currentInstant = 0;
 let maxInstant = 0;
@@ -75,7 +76,7 @@ function updateZoomBtn() {
 function rebuildKeepingInstant() {
   if (!lastProcs) return;
   setNoAnim(true);
-  buildGantt(lastProcs, lastSegments, lastShowPriority, lastQuantumText);
+  buildGantt(lastProcs, lastSegments, lastShowPriority, lastQuantumText, lastResourceLabels);
   setInstant(currentInstant);
   requestAnimationFrame(() => setNoAnim(false));
 }
@@ -109,7 +110,7 @@ function pausePlayback() {
   updatePlayBtn();
 }
 
-function makeSeg(procs, s, container) {
+function makeSeg(procs, s, container, resourceLabels) {
   const div = document.createElement('div');
   const colorKey = colorFor(procs, s.id);
   div.className = 'seg';
@@ -118,8 +119,10 @@ function makeSeg(procs, s, container) {
   div.style.background = `var(--${colorKey}-soft)`;
   div.style.borderColor = `var(--${colorKey})`;
   const proc = procs.find((p) => p.id === s.id);
-  div.dataset.label = proc ? proc.name : s.id;
-  div.title = `${proc ? proc.name : s.id}: ${s.start} → ${s.end}`;
+  const name = proc ? proc.name : s.id;
+  const resTag = resourceLabels && s.res != null ? ` (${resourceLabels[s.res]})` : '';
+  div.dataset.label = name + resTag;
+  div.title = `${name}${resTag}: ${s.start} → ${s.end}`;
   container.appendChild(div);
   segEls.push({ el: div, seg: s });
 }
@@ -151,7 +154,7 @@ function buildLegend(procs, showPriority, quantumText) {
   }
 }
 
-function buildSingleTrack(procs, segments, maxEnd, unitPx) {
+function buildSingleTrack(procs, segments, maxEnd, unitPx, resourceLabels) {
   ganttTrack.innerHTML = '';
   ganttAxis.innerHTML = '';
   ganttTrack.style.setProperty('--unit-px', `${unitPx}px`);
@@ -159,7 +162,7 @@ function buildSingleTrack(procs, segments, maxEnd, unitPx) {
   ganttTrack.style.width = `${totalWidth}px`;
   ganttAxis.style.width = `${totalWidth}px`;
 
-  segments.forEach((s) => makeSeg(procs, s, ganttTrack));
+  segments.forEach((s) => makeSeg(procs, s, ganttTrack, resourceLabels));
 
   playheadEl = document.createElement('div');
   playheadEl.className = 'playhead';
@@ -177,7 +180,7 @@ function buildSingleTrack(procs, segments, maxEnd, unitPx) {
   }
 }
 
-function buildLanes(procs, segments, maxEnd, unitPx) {
+function buildLanes(procs, segments, maxEnd, unitPx, resourceLabels) {
   lanesLabels.innerHTML = '';
   lanesAxis.innerHTML = '';
   lanesBody.innerHTML = '';
@@ -193,15 +196,21 @@ function buildLanes(procs, segments, maxEnd, unitPx) {
     lanesAxis.appendChild(tick);
   }
 
-  procs.forEach((p, i) => {
+  const lanes = resourceLabels
+    ? resourceLabels.map((name, i) => ({ name, swatch: null, filter: (s) => s.res === i }))
+    : procs.map((p, i) => ({ name: p.name, swatch: PALETTE[i % PALETTE.length], filter: (s) => s.id === p.id }));
+
+  lanes.forEach((lane) => {
     const label = document.createElement('div');
     label.className = 'lane-label';
-    const sw = document.createElement('span');
-    sw.className = 'swatch';
-    sw.style.background = `var(--${PALETTE[i % PALETTE.length]})`;
-    label.appendChild(sw);
+    if (lane.swatch) {
+      const sw = document.createElement('span');
+      sw.className = 'swatch';
+      sw.style.background = `var(--${lane.swatch})`;
+      label.appendChild(sw);
+    }
     const name = document.createElement('span');
-    name.textContent = p.name;
+    name.textContent = lane.name;
     label.appendChild(name);
     lanesLabels.appendChild(label);
 
@@ -210,7 +219,7 @@ function buildLanes(procs, segments, maxEnd, unitPx) {
     track.style.setProperty('--unit-px', `${unitPx}px`);
     lanesBody.appendChild(track);
 
-    segments.filter((s) => s.id === p.id).forEach((s) => makeSeg(procs, s, track));
+    segments.filter(lane.filter).forEach((s) => makeSeg(procs, s, track));
   });
 
   playheadEl = document.createElement('div');
@@ -221,7 +230,7 @@ function buildLanes(procs, segments, maxEnd, unitPx) {
   gPlayheadOffset = 0;
 }
 
-function buildGantt(procs, segments, showPriority, quantumText) {
+function buildGantt(procs, segments, showPriority, quantumText, resourceLabels) {
   segEls = [];
   let maxEnd = 0;
   segments.forEach((s) => { if (s.end > maxEnd) maxEnd = s.end; });
@@ -230,11 +239,14 @@ function buildGantt(procs, segments, showPriority, quantumText) {
   gUnitPx = userUnitPx != null ? userUnitPx : autoFitUnitPx(maxEnd);
 
   if (viewMode === 'lanes') {
-    buildLanes(procs, segments, maxEnd, gUnitPx);
+    buildLanes(procs, segments, maxEnd, gUnitPx, resourceLabels);
   } else {
-    buildSingleTrack(procs, segments, maxEnd, gUnitPx);
+    buildSingleTrack(procs, segments, maxEnd, gUnitPx, resourceLabels);
   }
   buildLegend(procs, showPriority, quantumText);
+
+  const lanesBtn = document.querySelector('.view-btn[data-view="lanes"]');
+  if (lanesBtn) lanesBtn.textContent = resourceLabels ? 'Vista por recurso' : 'Vista por proceso';
 }
 
 function updateReveal(revealUpTo) {
@@ -256,21 +268,22 @@ function updateReveal(revealUpTo) {
 }
 
 /** Pinta un nuevo resultado de simulación y arranca la reproducción desde el instante 0. */
-export function renderSimulation({ procs, segments, finish, labelText, showPriority, quantumText, algo, readyLog }) {
+export function renderSimulation({ procs, segments, finish, labelText, showPriority, quantumText, algo, readyLog, resourceLabels }) {
   pausePlayback();
   lastProcs = procs;
   lastSegments = segments;
   lastShowPriority = showPriority;
   lastQuantumText = quantumText;
+  lastResourceLabels = resourceLabels || null;
 
-  setReadyQueueData({ algo, procs, segments, finish, readyLog });
+  setReadyQueueData({ algo, procs, segments, finish, readyLog, ioMode: Boolean(resourceLabels) });
   algoLabelEl.textContent = labelText;
 
   maxInstant = 0;
   segments.forEach((s) => { if (s.end > maxInstant) maxInstant = s.end; });
   instantSliderEl.max = maxInstant;
 
-  buildGantt(procs, segments, showPriority, quantumText);
+  buildGantt(procs, segments, showPriority, quantumText, lastResourceLabels);
   setNoAnim(true);
   setInstant(0);
   requestAnimationFrame(() => setNoAnim(false));
