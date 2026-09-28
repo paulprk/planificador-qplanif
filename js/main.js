@@ -33,9 +33,19 @@ const codeInput = document.getElementById('codeInput');
 
 const RESOURCE_ALGO_NAMES = { fcfs: 'FCFS', sjf: 'SJF', pri: 'Prioridades' };
 
+const DEFAULT_IO_TEXT = `RECURSO "R1"
+TAREA "P1" INICIO=0 PRIORIDAD=1 [CPU,2] [R1,3] [CPU,1]
+TAREA "P2" INICIO=1 PRIORIDAD=2 [CPU,4]`;
+
 let mode = 'simple'; // 'simple' | 'io'
 let ioTasks = null;
 let ioResourceNames = [];
+
+function loadDefaultIo() {
+  const parsed = parseDefText(DEFAULT_IO_TEXT);
+  ioTasks = parsed.tasks;
+  ioResourceNames = parsed.resourceNames;
+}
 
 function updateFieldVisibility() {
   const needsQuantum = algoSel.value === 'rr' || algoSel.value === 'pri_rr';
@@ -47,10 +57,13 @@ algoSel.addEventListener('change', updateFieldVisibility);
 
 document.getElementById('addRow').addEventListener('click', addDefaultRow);
 document.getElementById('resetRows').addEventListener('click', () => {
-  ioTasks = null;
-  ioResourceNames = [];
-  loadDefault();
-  setMode('simple');
+  if (mode === 'io') {
+    loadDefaultIo();
+    setMode('io');
+  } else {
+    loadDefault();
+    setMode('simple');
+  }
 });
 
 // --- Toggle Modo simple / Modo E/S ---
@@ -76,14 +89,7 @@ function burstSeqText(t) {
 
 function renderIoSummary() {
   ioSummary.innerHTML = '';
-
-  if (!ioTasks) {
-    const empty = document.createElement('div');
-    empty.className = 'io-summary-empty';
-    empty.textContent = 'Todavía no cargaste ningún lote con E/S. Abrí "Ver / cargar código", escribí RECURSO/TAREA con ráfagas de recurso (ej: [R1,3]) y tocá "Cargar código".';
-    ioSummary.appendChild(empty);
-    return;
-  }
+  if (!ioTasks) return;
 
   const resLine = document.createElement('div');
   resLine.className = 'io-summary-resources';
@@ -124,12 +130,9 @@ function setMode(newMode) {
   ioSummary.hidden = !isIo;
   setCodePreviewEnabled(!isIo);
   if (isIo) {
+    if (!ioTasks) loadDefaultIo();
     renderIoSummary();
-    if (ioTasks) {
-      codeInput.value = defTextFromIoTasks(ioTasks, ioResourceNames);
-    } else {
-      codeInput.focus();
-    }
+    codeInput.value = defTextFromIoTasks(ioTasks, ioResourceNames);
   }
   updateFieldVisibility();
   runSimulation();

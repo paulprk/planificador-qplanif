@@ -517,13 +517,6 @@ button:focus-visible, select:focus-visible, input:focus-visible {
   background: var(--surface-2);
   border-bottom: 1px solid var(--line);
 }
-.io-summary-empty {
-  padding: 1.3rem 1rem;
-  text-align: center;
-  font-size: 0.83rem;
-  line-height: 1.5;
-  color: var(--ink-soft);
-}
 .io-task {
   display: flex;
   align-items: center;
