@@ -851,6 +851,7 @@ button:focus-visible, select:focus-visible, input:focus-visible {
 }
 
 .speed-field {
+  margin-left: 0.6rem;
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
@@ -1034,6 +1035,28 @@ table.results-table td {
   font-variant-numeric: tabular-nums;
 }
 table.results-table tr:last-child td { border-bottom: none; }
+
+.cmp-lede, .cmp-note { margin: 0 0 0.9rem; font-size: 0.82rem; line-height: 1.45; color: var(--ink-soft); }
+.cmp-note { margin: 0.8rem 0 0; font-size: 0.76rem; }
+.cmp-table td .cmp-num { display: flex; flex-direction: column; align-items: flex-end; gap: 0.2rem; }
+.cmp-bar { display: block; width: 4.5rem; height: 4px; border-radius: 2px; background: var(--line); overflow: hidden; }
+.cmp-bar i { display: block; height: 100%; background: var(--accent); opacity: 0.55; border-radius: 2px; }
+.cmp-best { color: var(--p0); color: color-mix(in srgb, var(--p0) 62%, var(--ink)); font-weight: 700; }
+tr.cmp-current { background: var(--surface-2); }
+.cmp-tag {
+  display: inline-block;
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-family: var(--font-display);
+  font-size: 0.64rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  vertical-align: middle;
+}
+.cmp-view { padding: 0.2rem 0.6rem; font-size: 0.78rem; }
+.cmp-table { min-width: 42rem; }
 
 footer.note {
   display: flex;

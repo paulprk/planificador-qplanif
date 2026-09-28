@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Planificador de CPU</title>
   <meta name="description" content="Simulador de algoritmos de planificación de CPU (FCFS, SJF, SRTF, Round Robin, Prioridades) con diagrama de Gantt animado.">
-  <link rel="stylesheet" href="css/styles.css?v=8">
+  <link rel="stylesheet" href="css/styles.css?v=10">
   <script>
     try {
       var savedTheme = localStorage.getItem('planificador-cpu-theme');
@@ -228,6 +228,24 @@
           <tbody id="resultsBody"></tbody>
         </table>
       </div>
+    </section>
+
+    <section class="panel" id="comparePanel">
+      <h2><span class="num">05</span> Comparar políticas</h2>
+      <p class="cmp-lede">El mismo lote corrido con todos los algoritmos, para ver cuál conviene según lo que te importe. En verde el mejor valor de TPR, TPE y tiempo total. Con <strong>Ver</strong> se carga esa política en el diagrama de Gantt.</p>
+      <div class="controls-row">
+        <div class="field">
+          <label for="cmpQuantums">Quantums a comparar (Round Robin)</label>
+          <input type="text" id="cmpQuantums" value="1, 2, 4" spellcheck="false" autocomplete="off" style="width:9rem">
+        </div>
+      </div>
+      <div class="table-scroll">
+        <table class="results-table cmp-table">
+          <thead id="cmpHead"></thead>
+          <tbody id="cmpBody"></tbody>
+        </table>
+      </div>
+      <p class="cmp-note">Cambios de contexto = veces que la CPU pasa de un proceso a otro distinto. Con menos cambios hay menos costo real de conmutación, aunque acá se lo simula sin costo.</p>
     </section>
   </div>
 

@@ -17,6 +17,7 @@ import { loadDefault, readProcesses, addDefaultRow, replaceRows, setPriorityColu
 import { initPlayback, renderSimulation } from './gantt.js';
 import { renderResults } from './results.js';
 import { computeMetrics } from './metrics.js';
+import { buildRows, renderComparison, parseQuantums } from './compare.js';
 import { initCodePreview, setCodePreviewEnabled } from './codepreview.js';
 import { simulateWithResources } from './iosim.js';
 import { PALETTE } from './colors.js';
@@ -272,6 +273,15 @@ function runSimulation() {
     algo,
     readyLog: result.readyLog
   });
+  showComparison({
+    ioMode: false,
+    numResources: 0,
+    current: { algo, quantum: needsQuantum ? quantum : null },
+    runOne: (a, q) => {
+      const r = runAlgorithm(a, procs, q).result;
+      return { procs, segments: r.segments, finish: r.finish };
+    }
+  });
 }
 
 function runIoSimulation() {
@@ -321,7 +331,51 @@ function runIoSimulation() {
     resourceLabels: result.resources,
     resourceAlgo
   });
+  showComparison({
+    ioMode: true,
+    numResources: ioResourceNames.length,
+    current: { algo, quantum: needsQuantum ? quantum : null },
+    runOne: (a, q) => {
+      const r = simulateWithResources({
+        tasks: simTasks, resourceNames: ioResourceNames, cpuAlgo: a, resourceAlgo, quantum: q || 1
+      });
+      return { procs: procsForResults, segments: r.segments, finish: r.finish };
+    }
+  });
 }
+
+// --- Comparación de políticas ---
+const cmpQuantums = document.getElementById('cmpQuantums');
+let lastComparison = null;
+
+function showComparison(cfg) {
+  lastComparison = cfg;
+  refreshComparison();
+}
+
+function refreshComparison() {
+  if (!lastComparison) return;
+  const { runOne, numResources, ioMode, current } = lastComparison;
+  let quantums = parseQuantums(cmpQuantums.value);
+  if (current.quantum && !quantums.includes(current.quantum)) {
+    quantums = [...quantums, current.quantum].sort((a, b) => a - b);
+  }
+  if (quantums.length === 0) quantums = [2];
+  const rows = buildRows({ quantums, runOne, numResources });
+  renderComparison({
+    rows,
+    ioMode,
+    current,
+    onPick: (algo, quantum) => {
+      algoSel.value = algo;
+      if (quantum) quantumInput.value = quantum;
+      updateFieldVisibility();
+      runSimulation();
+      document.getElementById('ganttPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  });
+}
+cmpQuantums.addEventListener('change', refreshComparison);
 
 document.getElementById('simBtn').addEventListener('click', runSimulation);
 resourceAlgoSel.addEventListener('change', () => { if (mode === 'io') runSimulation(); });
