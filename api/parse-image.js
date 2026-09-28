@@ -5,7 +5,7 @@
  * en la configuración del proyecto en Vercel), nunca en el código del
  * cliente ni en el repositorio.
  */
-const MODEL = 'gemini-2.0-flash';
+const MODEL = 'gemini-3.8-flash';
 
 const PROMPT = `Esta imagen contiene una tabla de procesos para un ejercicio de planificación de CPU, con columnas como "Job"/"Proceso", "Llegada"/"Arrival" y "Ráfaga"/"Unidades de CPU"/"Burst" (a veces también "Prioridad"/"Priority").
 
