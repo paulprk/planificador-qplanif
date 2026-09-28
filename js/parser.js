@@ -40,3 +40,10 @@ export function parseDefText(text) {
 
   return tasks;
 }
+
+/** El inverso de parseDefText: arma el texto .def equivalente a un lote de procesos. */
+export function defTextFromProcesses(procs) {
+  return procs
+    .map((p) => `TAREA "${p.name}" INICIO=${p.arrival} PRIORIDAD=${p.priority} [CPU,${p.burst}]`)
+    .join('\n');
+}

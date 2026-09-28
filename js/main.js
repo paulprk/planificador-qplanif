@@ -9,6 +9,7 @@ import { loadDefault, readProcesses, addDefaultRow, replaceRows, setPriorityColu
 import { initPlayback, renderSimulation } from './gantt.js';
 import { renderResults } from './results.js';
 import { initImageImport } from './imageimport.js';
+import { initCodePreview } from './codepreview.js';
 
 const algoSel = document.getElementById('algo');
 const quantumField = document.getElementById('quantumField');
@@ -110,5 +111,6 @@ document.getElementById('simBtn').addEventListener('click', runSimulation);
 initPlayback();
 initImageImport();
 loadDefault();
+initCodePreview();
 updateFieldVisibility();
 runSimulation();

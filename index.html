@@ -94,11 +94,14 @@
       <div class="table-actions">
         <button id="addRow" type="button">+ Agregar proceso</button>
         <button id="resetRows" type="button">Restaurar ejemplo</button>
-        <button id="toggleCode" type="button">{ } Cargar desde código</button>
+        <button id="toggleCode" type="button">{ } Ver / cargar código</button>
       </div>
       <div class="code-box" id="codeBox" hidden>
-        <label for="codeInput" style="font-size:0.78rem;color:var(--ink-soft);display:block;margin-bottom:0.4rem">Formato qplanif (<code>.def</code>): <code>TAREA "nombre" INICIO=x PRIORIDAD=y [CPU,n]</code></label>
-        <textarea id="codeInput" rows="8" spellcheck="false" placeholder='TAREA &quot;1&quot;&#10;INICIO=0 [CPU,7]&#10;TAREA &quot;2&quot;&#10;INICIO=0 [CPU,15]'></textarea>
+        <label class="code-box-label">Así se ve el lote actual en código (formato qplanif), se actualiza solo con la tabla:</label>
+        <pre class="code-preview"><code id="codePreview"></code></pre>
+
+        <label for="codeInput" class="code-box-label">Pegá o editá código acá para cargarlo en la tabla:</label>
+        <textarea id="codeInput" rows="8" spellcheck="false" placeholder='TAREA &quot;1&quot; INICIO=0 PRIORIDAD=1 [CPU,7]&#10;TAREA &quot;2&quot; INICIO=0 PRIORIDAD=2 [CPU,15]'></textarea>
         <div class="table-actions">
           <button class="primary" id="loadCode" type="button">Cargar código</button>
         </div>
