@@ -157,8 +157,8 @@
       <p class="algo-label" id="algoLabel"></p>
       <div class="gantt-toolbar">
         <div class="view-toggle" role="group" aria-label="Vista del diagrama">
-          <button type="button" class="view-btn active" data-view="single">Vista única</button>
-          <button type="button" class="view-btn" data-view="lanes">Vista por proceso</button>
+          <button type="button" class="view-btn" data-view="single">Vista única</button>
+          <button type="button" class="view-btn active" data-view="lanes">Vista por proceso</button>
         </div>
         <div class="zoom-toggle" role="group" aria-label="Zoom del diagrama">
           <button type="button" id="zoomOut" title="Alejar">－</button>
@@ -166,7 +166,7 @@
           <button type="button" id="zoomIn" title="Acercar">＋</button>
         </div>
       </div>
-      <div id="singleWrap">
+      <div id="singleWrap" hidden>
         <div class="gantt-scroll">
           <div class="gantt-inner" id="ganttInner">
             <div class="gantt-track" id="ganttTrack"></div>
@@ -174,7 +174,7 @@
           </div>
         </div>
       </div>
-      <div class="lanes-wrap" id="lanesWrap" hidden>
+      <div class="lanes-wrap" id="lanesWrap">
         <div class="lanes-labels" id="lanesLabels"></div>
         <div class="gantt-scroll lanes-scroll">
           <div class="gantt-inner" id="lanesScrollInner">

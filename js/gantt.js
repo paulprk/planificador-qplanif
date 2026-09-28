@@ -36,7 +36,7 @@ let playheadEl = null;
 let gUnitPx = 34;
 let gMaxEnd = 1;
 let gPlayheadOffset = 0;
-let viewMode = 'single';
+let viewMode = 'lanes';
 let userUnitPx = null; // null = ajuste automático al ancho disponible
 
 let lastProcs = null;
