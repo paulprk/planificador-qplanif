@@ -19,6 +19,30 @@ Devolvé ÚNICAMENTE un array JSON (sin texto adicional, sin markdown) con un ob
 
 Si no podés leer alguna fila con confianza, omitila en vez de inventar un valor.`;
 
+const RETRYABLE_STATUS = new Set([429, 500, 503]);
+const MAX_ATTEMPTS = 3;
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** Reintenta con backoff cuando Gemini está saturado (503) o hay rate limit (429): son errores temporales, no del código. */
+async function callGeminiWithRetry(url, body) {
+  let lastRes;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    lastRes = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    if (lastRes.ok || !RETRYABLE_STATUS.has(lastRes.status) || attempt === MAX_ATTEMPTS) {
+      return lastRes;
+    }
+    await sleep(500 * attempt);
+  }
+  return lastRes;
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     res.status(405).json({ ok: false, error: 'Método no permitido.' });
@@ -40,24 +64,24 @@ export default async function handler(req, res) {
   const [, mimeType, base64Data] = match;
 
   try {
-    const geminiRes = await fetch(
+    const geminiRes = await callGeminiWithRetry(
       `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${apiKey}`,
       {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{
-            parts: [
-              { text: PROMPT },
-              { inlineData: { mimeType, data: base64Data } }
-            ]
-          }],
-          generationConfig: { responseMimeType: 'application/json' }
-        })
+        contents: [{
+          parts: [
+            { text: PROMPT },
+            { inlineData: { mimeType, data: base64Data } }
+          ]
+        }],
+        generationConfig: { responseMimeType: 'application/json' }
       }
     );
 
     if (!geminiRes.ok) {
+      if (RETRYABLE_STATUS.has(geminiRes.status)) {
+        res.status(503).json({ ok: false, error: 'Gemini está con mucha demanda ahora mismo. Esperá unos segundos y probá de nuevo.' });
+        return;
+      }
       const errText = await geminiRes.text();
       res.status(502).json({ ok: false, error: `Gemini devolvió un error: ${errText.slice(0, 300)}` });
       return;
