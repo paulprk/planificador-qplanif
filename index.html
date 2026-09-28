@@ -97,10 +97,7 @@
         <button id="toggleCode" type="button">{ } Ver / cargar código</button>
       </div>
       <div class="code-box" id="codeBox" hidden>
-        <label class="code-box-label">Así se ve el lote actual en código (formato qplanif), se actualiza solo con la tabla:</label>
-        <pre class="code-preview"><code id="codePreview"></code></pre>
-
-        <label for="codeInput" class="code-box-label">Pegá o editá código acá para cargarlo en la tabla:</label>
+        <label for="codeInput" class="code-box-label">Código del lote (formato qplanif) — se actualiza solo con la tabla. Editalo acá mismo y tocá "Cargar código" para aplicar los cambios:</label>
         <textarea id="codeInput" rows="8" spellcheck="false" placeholder='TAREA &quot;1&quot; INICIO=0 PRIORIDAD=1 [CPU,7]&#10;TAREA &quot;2&quot; INICIO=0 PRIORIDAD=2 [CPU,15]'></textarea>
         <div class="table-actions">
           <button class="primary" id="loadCode" type="button">Cargar código</button>

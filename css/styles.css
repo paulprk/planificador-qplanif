@@ -438,24 +438,6 @@ button:focus-visible, select:focus-visible, input:focus-visible {
   color: var(--ink-soft);
   margin-bottom: 0.4rem;
 }
-.code-box-label:not(:first-child) {
-  margin-top: 1rem;
-}
-.code-preview {
-  margin: 0;
-  padding: 0.7rem 0.8rem;
-  border-radius: 10px;
-  background: var(--surface-2);
-  overflow-x: auto;
-}
-.code-preview code {
-  display: block;
-  font-family: var(--font-display);
-  font-size: 0.82rem;
-  line-height: 1.6;
-  color: var(--ink);
-  white-space: pre;
-}
 #codeInput {
   width: 100%;
   font-family: var(--font-display);
