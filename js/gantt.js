@@ -27,9 +27,9 @@ const zoomInBtn = document.getElementById('zoomIn');
 const zoomFitBtn = document.getElementById('zoomFit');
 
 const MIN_UNIT_PX = 6;
-const AUTO_MAX_UNIT_PX = 34;
-const MAX_UNIT_PX = 48;
-const ZOOM_STEP = 6;
+const AUTO_MAX_UNIT_PX = 110;
+const MAX_UNIT_PX = 110;
+const ZOOM_STEP = 10;
 
 let segEls = [];
 let playheadEl = null;
