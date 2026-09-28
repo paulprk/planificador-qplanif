@@ -8,6 +8,7 @@ import { parseDefText } from './parser.js';
 import { loadDefault, readProcesses, addDefaultRow, replaceRows, setPriorityColumnVisible } from './table.js';
 import { initPlayback, renderSimulation } from './gantt.js';
 import { renderResults } from './results.js';
+import { initImageImport } from './imageimport.js';
 
 const algoSel = document.getElementById('algo');
 const quantumField = document.getElementById('quantumField');
@@ -107,6 +108,7 @@ document.getElementById('simBtn').addEventListener('click', runSimulation);
 
 // --- Arranque ---
 initPlayback();
+initImageImport();
 loadDefault();
 updateFieldVisibility();
 runSimulation();
