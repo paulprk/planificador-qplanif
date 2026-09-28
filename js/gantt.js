@@ -51,6 +51,10 @@ let currentInstant = 0;
 let maxInstant = 0;
 let playing = false;
 let playTimer = null;
+const BASE_STEP_MS = 420;
+const SPEED_KEY = 'planificador-cpu-speed';
+const speedSel = document.getElementById('speedSel');
+let speed = 1;
 
 function setNoAnim(on) {
   ganttTrack.classList.toggle('no-anim', on);
@@ -105,7 +109,7 @@ function startPlayback() {
   playTimer = setInterval(() => {
     if (currentInstant >= maxInstant) { pausePlayback(); return; }
     setInstant(currentInstant + 1);
-  }, 420);
+  }, BASE_STEP_MS / speed);
 }
 
 function pausePlayback() {
@@ -401,6 +405,20 @@ export function renderSimulation({ procs, segments, finish, labelText, showPrior
 }
 
 export function initPlayback() {
+  try {
+    const saved = localStorage.getItem(SPEED_KEY);
+    if (saved && [...speedSel.options].some((o) => o.value === saved)) speedSel.value = saved;
+  } catch (e) { /* sin localStorage */ }
+  speed = parseFloat(speedSel.value) || 1;
+  speedSel.addEventListener('change', () => {
+    speed = parseFloat(speedSel.value) || 1;
+    try { localStorage.setItem(SPEED_KEY, speedSel.value); } catch (e) { /* ignorar */ }
+    if (playing) {
+      clearInterval(playTimer);
+      playing = false;
+      startPlayback();
+    }
+  });
   playPauseBtn.addEventListener('click', () => { playing ? pausePlayback() : startPlayback(); });
   document.getElementById('stepStart').addEventListener('click', () => { pausePlayback(); setInstant(0); });
   document.getElementById('stepBack').addEventListener('click', () => { pausePlayback(); setInstant(currentInstant - 1); });

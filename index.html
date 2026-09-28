@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Planificador de CPU</title>
   <meta name="description" content="Simulador de algoritmos de planificación de CPU (FCFS, SJF, SRTF, Round Robin, Prioridades) con diagrama de Gantt animado.">
-  <link rel="stylesheet" href="css/styles.css?v=6">
+  <link rel="stylesheet" href="css/styles.css?v=7">
   <script>
     try {
       var savedTheme = localStorage.getItem('planificador-cpu-theme');
@@ -164,6 +164,15 @@
         <button id="stepFwd" type="button" title="Avanzar 1 instante">▶|</button>
         <input type="range" id="instantSlider" min="0" max="0" value="0">
         <span class="instant-label" id="instantLabel">Instante: 0</span>
+        <label class="speed-field" for="speedSel">Velocidad
+          <select id="speedSel">
+            <option value="0.5">0,5×</option>
+            <option value="1" selected>1×</option>
+            <option value="2">2×</option>
+            <option value="4">4×</option>
+            <option value="8">8×</option>
+          </select>
+        </label>
       </div>
       <p class="algo-label" id="algoLabel"></p>
       <div class="gantt-toolbar">

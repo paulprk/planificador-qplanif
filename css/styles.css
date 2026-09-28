@@ -850,6 +850,20 @@ button:focus-visible, select:focus-visible, input:focus-visible {
   text-align: right;
 }
 
+.speed-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+}
+.speed-field select {
+  padding: 0.3rem 0.4rem;
+  font-family: var(--font-display);
+  font-size: 0.8rem;
+}
+
 /* Resultados */
 .stats-grid {
   display: grid;
