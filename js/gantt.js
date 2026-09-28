@@ -43,6 +43,8 @@ let lastProcs = null;
 let lastSegments = [];
 let lastShowPriority = false;
 let lastQuantumText = null;
+let lastFinish = {};
+let markerEls = [];
 let lastResourceLabels = null; // null = modo simple (lanes = procesos); array = modo E/S (lanes = recursos)
 
 let currentInstant = 0;
@@ -129,7 +131,7 @@ function makeSeg(procs, s, container, resourceLabels) {
   segEls.push({ el: div, seg: s });
 }
 
-function buildLegend(procs, showPriority, quantumText) {
+function buildLegend(procs, showPriority, quantumText, isIo) {
   legendEl.innerHTML = '';
   procs.forEach((p, i) => {
     const item = document.createElement('div');
@@ -154,6 +156,34 @@ function buildLegend(procs, showPriority, quantumText) {
     qItem.textContent = `Quantum = ${quantumText}`;
     legendEl.appendChild(qItem);
   }
+
+  const brk = document.createElement('div');
+  brk.className = 'legend-break';
+  legendEl.appendChild(brk);
+
+  const states = [
+    ['cpu', 'usando la CPU'],
+    ...(isIo ? [['io', 'usando un dispositivo de E/S'], ['wait-dev', 'esperando que se libere el dispositivo']] : []),
+    ['wait-cpu', 'listo: esperando la CPU']
+  ];
+  states.forEach(([kind, text]) => {
+    const item = document.createElement('div');
+    item.className = 'legend-item';
+    const sw = document.createElement('span');
+    sw.className = `state-swatch seg-${kind}`;
+    item.appendChild(sw);
+    item.append(text);
+    legendEl.appendChild(item);
+  });
+  [['mark-arr', 'llega'], ['mark-end', 'termina']].forEach(([cls, text]) => {
+    const item = document.createElement('div');
+    item.className = 'legend-item';
+    const ico = document.createElement('span');
+    ico.className = `mark ${cls} mark-static`;
+    item.appendChild(ico);
+    item.append(text);
+    legendEl.appendChild(item);
+  });
 }
 
 function buildSingleTrack(procs, segments, maxEnd, unitPx, resourceLabels) {
@@ -182,6 +212,45 @@ function buildSingleTrack(procs, segments, maxEnd, unitPx, resourceLabels) {
   }
 }
 
+/** Estados de un proceso entre su llegada y su fin, derivados de sus segmentos. */
+function stateIntervals(p, segments) {
+  const mine = segments.filter((s) => s.id === p.id).sort((a, b) => a.start - b.start);
+  const out = [];
+  let cursor = p.arrival;
+  mine.forEach((s) => {
+    if (s.start > cursor) out.push({ kind: s.res === 0 ? 'wait-cpu' : 'wait-dev', start: cursor, end: s.start, res: s.res });
+    out.push({ kind: s.res === 0 ? 'cpu' : 'io', start: s.start, end: s.end, res: s.res });
+    cursor = s.end;
+  });
+  return out;
+}
+
+const STATE_TEXT = { cpu: 'usa la CPU', io: 'usa', 'wait-dev': 'espera a', 'wait-cpu': 'espera la CPU' };
+
+function makeStateSeg(container, colorKey, iv, resourceLabels) {
+  const div = document.createElement('div');
+  div.className = `seg seg-${iv.kind}`;
+  div.style.setProperty('--c', `var(--${colorKey})`);
+  div.style.setProperty('--c-soft', `var(--${colorKey}-soft)`);
+  div.style.left = `${iv.start * gUnitPx}px`;
+  div.style.width = '0px';
+  const dev = resourceLabels && iv.res > 0 ? ` ${resourceLabels[iv.res]}` : '';
+  div.dataset.label = iv.kind === 'cpu' ? 'CPU' : '';
+  div.title = `${STATE_TEXT[iv.kind]}${iv.kind === 'io' || iv.kind === 'wait-dev' ? dev : ''}: ${iv.start} → ${iv.end}`;
+  container.appendChild(div);
+  segEls.push({ el: div, seg: iv });
+}
+
+function addMarker(container, colorKey, cls, at, title) {
+  const m = document.createElement('span');
+  m.className = `mark ${cls}`;
+  m.style.setProperty('--c', `var(--${colorKey})`);
+  m.style.left = `${at * gUnitPx}px`;
+  m.title = title;
+  container.appendChild(m);
+  markerEls.push({ el: m, at });
+}
+
 function buildLanes(procs, segments, maxEnd, unitPx, resourceLabels) {
   lanesLabels.innerHTML = '';
   lanesAxis.innerHTML = '';
@@ -198,21 +267,17 @@ function buildLanes(procs, segments, maxEnd, unitPx, resourceLabels) {
     lanesAxis.appendChild(tick);
   }
 
-  const lanes = resourceLabels
-    ? resourceLabels.map((name, i) => ({ name, swatch: null, filter: (s) => s.res === i }))
-    : procs.map((p, i) => ({ name: p.name, swatch: PALETTE[i % PALETTE.length], filter: (s) => s.id === p.id }));
-
-  lanes.forEach((lane) => {
+  function addLane(labelText, swatch) {
     const label = document.createElement('div');
     label.className = 'lane-label';
-    if (lane.swatch) {
+    if (swatch) {
       const sw = document.createElement('span');
       sw.className = 'swatch';
-      sw.style.background = `var(--${lane.swatch})`;
+      sw.style.background = `var(--${swatch})`;
       label.appendChild(sw);
     }
     const name = document.createElement('span');
-    name.textContent = lane.name;
+    name.textContent = labelText;
     label.appendChild(name);
     lanesLabels.appendChild(label);
 
@@ -220,8 +285,30 @@ function buildLanes(procs, segments, maxEnd, unitPx, resourceLabels) {
     track.className = 'lane-track';
     track.style.setProperty('--unit-px', `${unitPx}px`);
     lanesBody.appendChild(track);
+    return track;
+  }
 
-    segments.filter(lane.filter).forEach((s) => makeSeg(procs, s, track));
+  markerEls = [];
+
+  if (resourceLabels) {
+    resourceLabels.forEach((name, i) => {
+      const track = addLane(name, null);
+      segments.filter((s) => s.res === i).forEach((s) => makeSeg(procs, s, track));
+    });
+    const gapLabel = document.createElement('div');
+    gapLabel.className = 'lane-gap';
+    lanesLabels.appendChild(gapLabel);
+    const gapTrack = document.createElement('div');
+    gapTrack.className = 'lane-gap';
+    lanesBody.appendChild(gapTrack);
+  }
+
+  procs.forEach((p, i) => {
+    const track = addLane(p.name, PALETTE[i % PALETTE.length]);
+    const colorKey = PALETTE[i % PALETTE.length];
+    stateIntervals(p, segments).forEach((iv) => makeStateSeg(track, colorKey, iv, resourceLabels));
+    addMarker(track, colorKey, 'mark-arr', p.arrival, `${p.name} llega en t=${p.arrival}`);
+    if (lastFinish[p.id] != null) addMarker(track, colorKey, 'mark-end', lastFinish[p.id], `${p.name} termina en t=${lastFinish[p.id]}`);
   });
 
   playheadEl = document.createElement('div');
@@ -245,10 +332,10 @@ function buildGantt(procs, segments, showPriority, quantumText, resourceLabels) 
   } else {
     buildSingleTrack(procs, segments, maxEnd, gUnitPx, resourceLabels);
   }
-  buildLegend(procs, showPriority, quantumText);
+  buildLegend(procs, showPriority, quantumText, Boolean(resourceLabels));
 
   const lanesBtn = document.querySelector('.view-btn[data-view="lanes"]');
-  if (lanesBtn) lanesBtn.textContent = resourceLabels ? 'Vista por recurso' : 'Vista por proceso';
+  if (lanesBtn) lanesBtn.textContent = resourceLabels ? 'Recursos y procesos' : 'Vista por proceso';
 }
 
 function updateReveal(revealUpTo) {
@@ -263,6 +350,7 @@ function updateReveal(revealUpTo) {
     div.style.width = `${w}px`;
     div.textContent = w >= gUnitPx - 2 ? div.dataset.label : '';
   });
+  markerEls.forEach(({ el, at }) => { el.style.opacity = at <= revealUpTo ? '1' : '0'; });
   if (playheadEl) {
     playheadEl.style.left = `${gPlayheadOffset + revealUpTo * gUnitPx}px`;
     playheadEl.style.opacity = (revealUpTo > 0 && revealUpTo < gMaxEnd) ? '1' : '0';
@@ -273,8 +361,7 @@ function updateReveal(revealUpTo) {
  * "Vista única" solo tiene sentido cuando nunca hay dos cosas corriendo a la
  * vez (modo simple: una sola CPU). En modo E/S puede haber una tarea en la
  * CPU y otra en un recurso al mismo tiempo, y esa vista las mete en la misma
- * fila — los segmentos se superponen visualmente. Se oculta el botón ahí y,
- * si estaba activa, se fuerza a "Vista por recurso".
+ * fila — los segmentos se superponen visualmente. Se oculta el botón ahí.
  */
 function updateViewAvailability(resourceLabels) {
   const singleBtn = document.querySelector('.view-btn[data-view="single"]');
@@ -296,6 +383,7 @@ export function renderSimulation({ procs, segments, finish, labelText, showPrior
   lastSegments = segments;
   lastShowPriority = showPriority;
   lastQuantumText = quantumText;
+  lastFinish = finish || {};
   lastResourceLabels = resourceLabels || null;
   updateViewAvailability(lastResourceLabels);
 

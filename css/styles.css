@@ -962,3 +962,52 @@ footer.note {
   .seg, .playhead, .lanes-playhead, button { transition: none !important; transform: none !important; }
   .info-popover { transition: opacity 120ms ease !important; transform: none !important; }
 }
+
+/* Estados por proceso: CPU / dispositivo / espera */
+.seg-cpu { background: var(--c-soft); border-color: var(--c); }
+.seg-io {
+  border-color: var(--c);
+  background:
+    repeating-linear-gradient(135deg, transparent 0 4px, var(--c) 4px 5.5px),
+    var(--c-soft);
+}
+.seg-wait-dev {
+  border-color: var(--c);
+  background: repeating-linear-gradient(90deg, transparent 0 4px, var(--c) 4px 5.5px);
+}
+.seg-wait-cpu {
+  top: 15px;
+  bottom: 15px;
+  border: 1.5px dashed var(--line-strong);
+  background: transparent;
+}
+.state-swatch {
+  position: relative;
+  display: inline-block;
+  width: 26px;
+  height: 14px;
+  border-radius: 4px;
+  border-width: 1.5px;
+  border-style: solid;
+  --c: var(--ink-soft);
+  --c-soft: var(--surface-2);
+}
+.state-swatch.seg-wait-cpu { top: auto; bottom: auto; height: 10px; border-style: dashed; border-color: var(--line-strong); }
+.legend-break { flex-basis: 100%; height: 0; }
+.lane-gap { height: 12px; }
+.lane-track .mark {
+  position: absolute;
+  z-index: 2;
+  transform: translateX(-50%);
+  transition: opacity 120ms;
+}
+.mark {
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  --c: var(--ink-soft);
+}
+.mark-arr { border-bottom: 7px solid var(--c); bottom: 0; }
+.mark-end { border-top: 7px solid var(--c); top: 0; }
+.mark-static { display: inline-block; position: static; transform: none; }
