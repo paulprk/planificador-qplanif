@@ -152,9 +152,18 @@ ioSummary.addEventListener('input', (e) => {
   codeInput.value = defTextFromIoTasks(ioTasks, ioResourceNames);
 });
 
+const modeIndicator = document.getElementById('modeIndicator');
+function moveModeIndicator() {
+  const activeBtn = document.querySelector('.mode-btn.active');
+  if (!activeBtn || !modeIndicator) return;
+  modeIndicator.style.width = `${activeBtn.offsetWidth}px`;
+  modeIndicator.style.transform = `translateX(${activeBtn.offsetLeft}px)`;
+}
+
 function setMode(newMode) {
   mode = newMode;
   document.querySelectorAll('.mode-btn').forEach((b) => b.classList.toggle('active', b.dataset.mode === mode));
+  moveModeIndicator();
 
   const isIo = mode === 'io';
   procTable.hidden = isIo;
@@ -316,4 +325,5 @@ initPlayback();
 loadDefault();
 initCodePreview();
 updateFieldVisibility();
+moveModeIndicator();
 runSimulation();

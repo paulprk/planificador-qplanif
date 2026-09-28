@@ -17,8 +17,6 @@
   --danger-soft: #FFE2E0;
   --grid-line: #E5E5EA;
   --panel-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 0 0 0.5px rgba(0, 0, 0, 0.04);
-  --glass: rgba(255, 255, 255, 0.55);
-  --glass-line: rgba(60, 60, 67, 0.14);
   --font-display: ui-monospace, 'SF Mono', 'SFMono-Regular', Menlo, Consolas, monospace;
   --font-body: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
   /* Process palette drawn from the remaining Apple system colors */
@@ -51,8 +49,6 @@
     --danger-soft: #3A1D1B;
     --grid-line: #2C2C2E;
     --panel-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
-    --glass: rgba(28, 28, 30, 0.55);
-    --glass-line: rgba(255, 255, 255, 0.1);
     --p0: #30D158; --p0-soft: #1E3324; /* systemGreen */
     --p1: #BF5AF2; --p1-soft: #3A2740; /* systemPurple */
     --p2: #5E5CE6; --p2-soft: #26253F; /* systemIndigo */
@@ -70,7 +66,6 @@
   --running: #FF9F0A; --running-soft: #3A2A11;
   --danger: #FF453A; --danger-soft: #3A1D1B; --grid-line: #2C2C2E;
   --panel-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
-  --glass: rgba(28, 28, 30, 0.55); --glass-line: rgba(255, 255, 255, 0.1);
   --p0: #30D158; --p0-soft: #1E3324; --p1: #BF5AF2; --p1-soft: #3A2740;
   --p2: #5E5CE6; --p2-soft: #26253F; --p3: #66D4CF; --p3-soft: #1B3A38;
   --p4: #FF375F; --p4-soft: #3B2029; --p5: #40C8E0; --p5-soft: #1C333B;
@@ -476,27 +471,15 @@ button:focus-visible, select:focus-visible, input:focus-visible {
 }
 .error-msg.show { display: block; }
 
-/* El blur va en un hijo adentro del elemento sticky, no en el elemento
-   sticky mismo: Safari tiene un bug donde backdrop-filter no se aplica
-   si está en el mismo elemento que position:sticky. */
 .mode-toggle-bar {
-  position: -webkit-sticky;
-  position: sticky;
-  top: 0.75rem;
-  z-index: 15;
   align-self: flex-start;
-}
-.mode-toggle-glass {
   display: flex;
   align-items: center;
   gap: 0.55rem;
   padding: 0.4rem 0.55rem;
-  background: var(--glass);
-  border: 1px solid var(--glass-line);
+  background: var(--surface);
   border-radius: 12px;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.1);
-  -webkit-backdrop-filter: blur(20px) saturate(1.8);
-  backdrop-filter: blur(20px) saturate(1.8);
+  box-shadow: var(--panel-shadow);
 }
 .mode-toggle-label {
   padding-left: 0.25rem;
@@ -508,13 +491,27 @@ button:focus-visible, select:focus-visible, input:focus-visible {
   color: var(--ink-soft);
 }
 .mode-toggle {
+  position: relative;
   display: inline-flex;
   gap: 2px;
   padding: 2px;
   background: var(--surface-2);
   border-radius: 9px;
 }
+.mode-toggle-indicator {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  left: 0;
+  width: 0;
+  border-radius: 7px;
+  background: var(--surface);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+  transition: transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1), width 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
 .mode-btn {
+  position: relative;
+  z-index: 1;
   font-family: var(--font-body);
   font-weight: 600;
   font-size: 0.78rem;
@@ -526,11 +523,7 @@ button:focus-visible, select:focus-visible, input:focus-visible {
   cursor: pointer;
 }
 .mode-btn:hover { color: var(--ink); }
-.mode-btn.active {
-  background: var(--surface);
-  color: var(--accent);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
-}
+.mode-btn.active { color: var(--accent); }
 
 .io-summary {
   display: flex;
@@ -949,18 +942,6 @@ footer.note {
   select#algo { min-width: 0; width: 100%; }
   table.proc-table { font-size: 0.8rem; }
   .stats-grid { grid-template-columns: repeat(2, 1fr); }
-
-  /* En celular la pantalla es chica: mejor que el toggle de modo quede
-     fijo en su lugar normal (sin flotar/tapar nada al scrollear) que
-     sticky — ahí scrollear de vuelta arriba no molesta tanto. */
-  .mode-toggle-bar { position: static; }
-  .mode-toggle-glass {
-    background: var(--surface-2);
-    border: none;
-    box-shadow: none;
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
-  }
 }
 
 /* Objetivos táctiles: en touch (no mouse) varios controles quedan chicos
