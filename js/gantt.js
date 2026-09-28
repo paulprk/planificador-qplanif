@@ -11,6 +11,7 @@ import { PALETTE, colorFor } from './colors.js';
 import { setReadyQueueData, renderReadyQueueAt } from './readyqueue.js';
 import { stateIntervals } from './metrics.js';
 import { setNarrationData, renderNarrationAt, initNarrationMap } from './narrate.js';
+import { renderGuide } from './guide.js';
 
 const ganttTrack = document.getElementById('ganttTrack');
 const ganttAxis = document.getElementById('ganttAxis');
@@ -219,9 +220,9 @@ function buildSingleTrack(procs, segments, maxEnd, unitPx, resourceLabels) {
   }
 }
 
-const STATE_TEXT = { cpu: 'usa la CPU', io: 'usa', 'wait-dev': 'espera a', 'wait-cpu': 'espera la CPU' };
+const STATE_TEXT = { cpu: 'usa la CPU', io: 'usa', 'wait-dev': 'espera que se libere', 'wait-cpu': 'está listo y espera la CPU' };
 
-function makeStateSeg(container, colorKey, iv, resourceLabels) {
+function makeStateSeg(container, colorKey, iv, resourceLabels, procName) {
   const div = document.createElement('div');
   div.className = `seg seg-${iv.kind}`;
   div.style.setProperty('--c', `var(--${colorKey})`);
@@ -230,7 +231,7 @@ function makeStateSeg(container, colorKey, iv, resourceLabels) {
   div.style.width = '0px';
   const dev = resourceLabels && iv.res > 0 ? ` ${resourceLabels[iv.res]}` : '';
   div.dataset.label = iv.kind === 'cpu' ? 'CPU' : '';
-  div.title = `${STATE_TEXT[iv.kind]}${iv.kind === 'io' || iv.kind === 'wait-dev' ? dev : ''}: ${iv.start} → ${iv.end}`;
+  div.title = `${procName} ${STATE_TEXT[iv.kind]}${iv.kind === 'io' || iv.kind === 'wait-dev' ? dev : ''} desde t=${iv.start} hasta t=${iv.end} (${iv.end - iv.start} ${iv.end - iv.start === 1 ? 'unidad' : 'unidades'})`;
   container.appendChild(div);
   segEls.push({ el: div, seg: iv });
 }
@@ -300,7 +301,7 @@ function buildLanes(procs, segments, maxEnd, unitPx, resourceLabels) {
   procs.forEach((p, i) => {
     const track = addLane(p.name, PALETTE[i % PALETTE.length]);
     const colorKey = PALETTE[i % PALETTE.length];
-    stateIntervals(p, segments).forEach((iv) => makeStateSeg(track, colorKey, iv, resourceLabels));
+    stateIntervals(p, segments).forEach((iv) => makeStateSeg(track, colorKey, iv, resourceLabels, p.name));
     addMarker(track, colorKey, 'mark-arr', p.arrival, `${p.name} llega en t=${p.arrival}`);
     if (lastFinish[p.id] != null) addMarker(track, colorKey, 'mark-end', lastFinish[p.id], `${p.name} termina en t=${lastFinish[p.id]}`);
   });
@@ -381,6 +382,7 @@ export function renderSimulation({ procs, segments, finish, labelText, showPrior
   lastResourceLabels = resourceLabels || null;
   updateViewAvailability(lastResourceLabels);
 
+  renderGuide({ procs, segments, resourceLabels: resourceLabels || null, algo, quantumText, resourceAlgo });
   setReadyQueueData({ algo, procs, segments, finish, readyLog, ioMode: Boolean(resourceLabels), resourceLabels });
   setNarrationData({
     procs, segments, finish, algo,

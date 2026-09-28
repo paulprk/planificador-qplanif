@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Planificador de CPU</title>
   <meta name="description" content="Simulador de algoritmos de planificación de CPU (FCFS, SJF, SRTF, Round Robin, Prioridades) con diagrama de Gantt animado.">
-  <link rel="stylesheet" href="css/styles.css?v=13">
+  <link rel="stylesheet" href="css/styles.css?v=14">
   <script>
     try {
       var savedTheme = localStorage.getItem('planificador-cpu-theme');
@@ -204,6 +204,10 @@
         </div>
       </div>
       <div class="legend" id="legend"></div>
+      <details class="guide" id="guide">
+        <summary>¿Cómo leo este gráfico?</summary>
+        <div class="guide-body" id="guideBody"></div>
+      </details>
       <div id="readyQueueWrap"></div>
       <div class="narration" id="narration">
         <div class="narration-head">

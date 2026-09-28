@@ -102,15 +102,19 @@ export function buildNarration({ procs, segments: rawSegments, finish, algo, qua
     const mine = { id: seg.id, seg, entry: (ivsOf[seg.id].find((iv) => iv.kind === 'wait-cpu' && iv.end === t) || { start: t }).start };
     const others = waiting(t, 0).filter((c) => c.id !== seg.id);
     if (others.length === 0) return 'es el único proceso listo.';
-    if (algo === 'rr') return 'es el primero de la cola de listos (Round Robin atiende en orden de llegada a la cola).';
+    if (algo === 'rr') return 'es el primero de la cola de listos (Round Robin atiende en el orden en que se formó la cola).';
     const mv = cpuMetric(mine);
     const tie = others.some((c) => cpuMetric(c) === mv);
-    const cmp = list(others.slice(0, 3).map((c) => `${name(c.id)}: ${cpuMetric(c)}`)) + (others.length > 3 ? ', …' : '');
+    const showOthers = others.slice(0, 3);
+    const more = others.length > 3 ? ', …' : '';
+    const cmp = algo === 'fcfs'
+      ? list(showOthers.map((c) => `${name(c.id)} entró en t=${cpuMetric(c)}`)) + more
+      : list(showOthers.map((c) => `${name(c.id)}: ${cpuMetric(c)}`)) + more;
     let base;
-    if (algo === 'fcfs') base = `entró antes que el resto a la cola de listos (en el instante ${mv}; ${cmp})`;
-    else if (algo === 'sjf') base = `tiene la ráfaga más corta entre los listos (${mv}; ${cmp})`;
-    else if (algo === 'srtf') base = `es el que menos tiempo restante tiene entre los listos (${mv}; ${cmp})`;
-    else base = `tiene la mayor prioridad entre los listos (prioridad ${mv}; ${cmp}; menor número = mayor prioridad)`;
+    if (algo === 'fcfs') base = `entró antes que el resto a la cola de listos (entró en t=${mv}; ${cmp})`;
+    else if (algo === 'sjf') base = `tiene la ráfaga de CPU más corta entre los listos (la suya es ${mv}; ${cmp})`;
+    else if (algo === 'srtf') base = `es al que menos tiempo le falta entre los listos (le faltan ${mv}; ${cmp})`;
+    else base = `tiene la mayor prioridad entre los listos (la suya es ${mv}; ${cmp}; el número más bajo es el más urgente)`;
     if (tie) base += algo === 'fcfs' ? '. Empatan en llegada, así que va primero el de menor orden en el lote' : '. Hay empate: gana el que entró antes a la cola';
     return `${base}.`;
   }
@@ -436,6 +440,12 @@ export function renderNarrationAt(t) {
     li.className = 'nar-empty';
     li.textContent = 'No cambia nada en este instante: cada proceso sigue con lo que venía haciendo.';
     ul.appendChild(li);
+  }
+  if (t === 0 && data.makespan > 0) {
+    const hint = document.createElement('li');
+    hint.className = 'nar-hint';
+    hint.textContent = 'Recién empieza. Tocá ▶ Reproducir, o avanzá de a un instante con la flecha → del teclado, y acá se explica qué decide el planificador y por qué.';
+    ul.appendChild(hint);
   }
   evs.forEach((ev) => {
     const li = document.createElement('li');

@@ -1226,3 +1226,22 @@ footer.note {
 .mark-arr { border-bottom: 7px solid var(--c); bottom: 0; }
 .mark-end { border-top: 7px solid var(--c); top: 0; }
 .mark-static { display: inline-block; position: static; transform: none; }
+
+.narration-events li.nar-hint { border-left-color: var(--accent); color: var(--ink-soft); font-size: 0.82rem; }
+
+.guide { margin-top: 0.8rem; font-size: 0.84rem; }
+.guide summary { cursor: pointer; color: var(--accent); font-family: var(--font-display); font-size: 0.8rem; font-weight: 600; }
+.guide-body {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: 0.8rem;
+  align-items: start;
+  margin-top: 0.6rem;
+}
+.guide-sec { padding: 0.7rem 0.85rem; background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; }
+.guide-sec h4 { margin: 0 0 0.4rem; font-family: var(--font-display); font-size: 0.78rem; letter-spacing: 0.03em; text-transform: uppercase; color: var(--ink-soft); }
+.guide-sec p { margin: 0 0 0.5rem; line-height: 1.5; }
+.guide-sec p:last-child { margin-bottom: 0; }
+.guide-row { display: flex; align-items: flex-start; gap: 0.5rem; margin-bottom: 0.4rem; line-height: 1.45; }
+.guide-row .state-swatch { flex: none; margin-top: 0.15rem; }
+.guide-ex { padding: 0.4rem 0.6rem; background: var(--surface); border-radius: 6px; border: 1px solid var(--line); }
