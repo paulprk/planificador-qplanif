@@ -218,8 +218,8 @@ function stateIntervals(p, segments) {
   const out = [];
   let cursor = p.arrival;
   mine.forEach((s) => {
-    if (s.start > cursor) out.push({ kind: s.res === 0 ? 'wait-cpu' : 'wait-dev', start: cursor, end: s.start, res: s.res });
-    out.push({ kind: s.res === 0 ? 'cpu' : 'io', start: s.start, end: s.end, res: s.res });
+    if (s.start > cursor) out.push({ kind: !s.res ? 'wait-cpu' : 'wait-dev', start: cursor, end: s.start, res: s.res || 0 });
+    out.push({ kind: !s.res ? 'cpu' : 'io', start: s.start, end: s.end, res: s.res || 0 });
     cursor = s.end;
   });
   return out;

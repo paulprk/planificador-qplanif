@@ -964,7 +964,12 @@ footer.note {
 }
 
 /* Estados por proceso: CPU / dispositivo / espera */
-.seg-cpu { background: var(--c-soft); border-color: var(--c); }
+.seg-cpu {
+  background: var(--c);
+  border-color: var(--c);
+  color: #fff;
+  text-shadow: 0 0 3px rgba(0, 0, 0, 0.45);
+}
 .seg-io {
   border-color: var(--c);
   background:
@@ -992,6 +997,7 @@ footer.note {
   --c: var(--ink-soft);
   --c-soft: var(--surface-2);
 }
+.state-swatch.seg-cpu { background: var(--ink-soft); }
 .state-swatch.seg-wait-cpu { top: auto; bottom: auto; height: 10px; border-style: dashed; border-color: var(--line-strong); }
 .legend-break { flex-basis: 100%; height: 0; }
 .lane-gap { height: 12px; }
