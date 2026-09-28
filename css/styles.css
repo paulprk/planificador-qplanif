@@ -444,6 +444,38 @@ button:focus-visible, select:focus-visible, input:focus-visible {
   color: var(--ink);
   resize: vertical;
 }
+.img-drop {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.9rem;
+  padding: 0.9rem 1rem;
+  border: 1.5px dashed var(--line-strong);
+  border-radius: 12px;
+  color: var(--ink-soft);
+  font-size: 0.82rem;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 140ms ease-out, background 140ms ease-out, color 140ms ease-out;
+}
+.img-drop:hover { border-color: var(--accent); color: var(--ink); }
+.img-drop:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.img-drop.dragover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.img-drop[aria-disabled="true"] { opacity: 0.6; pointer-events: none; cursor: default; }
+.img-drop-icon { font-size: 1.25rem; }
+.img-drop-link {
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 .code-msg {
   margin: 0.5rem 0 0;
   font-size: 0.8rem;

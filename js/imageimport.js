@@ -15,7 +15,7 @@ import { replaceRows } from './table.js';
 
 const TESSERACT_SRC = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
 
-const btn = document.getElementById('imgBtn');
+const dropZone = document.getElementById('imgDrop');
 const input = document.getElementById('imgInput');
 const msg = document.getElementById('imgMsg');
 
@@ -87,7 +87,11 @@ function setMsg(text, kind) {
 
 async function handleFile(file) {
   if (!file) return;
-  btn.disabled = true;
+  if (!file.type.startsWith('image/')) {
+    setMsg('Eso no es una imagen. Soltá una foto o captura de la tabla (JPG, PNG...).', 'err');
+    return;
+  }
+  dropZone.setAttribute('aria-disabled', 'true');
   setMsg('Cargando el lector de imágenes…');
 
   try {
@@ -109,12 +113,37 @@ async function handleFile(file) {
   } catch (err) {
     setMsg(`No se pudo leer la imagen: ${err.message}`, 'err');
   } finally {
-    btn.disabled = false;
+    dropZone.removeAttribute('aria-disabled');
     input.value = '';
   }
 }
 
 export function initImageImport() {
-  btn.addEventListener('click', () => input.click());
+  dropZone.addEventListener('click', () => input.click());
+  dropZone.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); input.click(); }
+  });
   input.addEventListener('change', () => handleFile(input.files[0]));
+
+  let dragCounter = 0;
+  dropZone.addEventListener('dragenter', (e) => {
+    e.preventDefault();
+    dragCounter++;
+    dropZone.classList.add('dragover');
+  });
+  dropZone.addEventListener('dragover', (e) => e.preventDefault());
+  dropZone.addEventListener('dragleave', () => {
+    dragCounter = Math.max(0, dragCounter - 1);
+    if (dragCounter === 0) dropZone.classList.remove('dragover');
+  });
+  dropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dragCounter = 0;
+    dropZone.classList.remove('dragover');
+    handleFile(e.dataTransfer.files[0]);
+  });
+
+  // Evita que soltar la imagen fuera de la zona navegue a la imagen y pierda la página.
+  window.addEventListener('dragover', (e) => e.preventDefault());
+  window.addEventListener('drop', (e) => { if (e.target !== dropZone && !dropZone.contains(e.target)) e.preventDefault(); });
 }

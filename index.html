@@ -95,8 +95,6 @@
         <button id="addRow" type="button">+ Agregar proceso</button>
         <button id="resetRows" type="button">Restaurar ejemplo</button>
         <button id="toggleCode" type="button">{ } Cargar desde código</button>
-        <button id="imgBtn" type="button">🖼 Cargar desde imagen</button>
-        <input type="file" id="imgInput" accept="image/*" hidden>
       </div>
       <div class="code-box" id="codeBox" hidden>
         <label for="codeInput" style="font-size:0.78rem;color:var(--ink-soft);display:block;margin-bottom:0.4rem">Formato qplanif (<code>.def</code>): <code>TAREA "nombre" INICIO=x PRIORIDAD=y [CPU,n]</code></label>
@@ -106,6 +104,11 @@
         </div>
         <p class="code-msg" id="codeMsg"></p>
       </div>
+      <div class="img-drop" id="imgDrop" tabindex="0" role="button" aria-label="Cargar tabla de procesos desde una imagen">
+        <span class="img-drop-icon">🖼</span>
+        <span class="img-drop-text">Arrastrá una imagen de la tabla acá, o <span class="img-drop-link">hacé click para elegirla</span></span>
+      </div>
+      <input type="file" id="imgInput" accept="image/*" hidden>
       <p class="code-msg" id="imgMsg"></p>
     </section>
 
