@@ -1,83 +1,42 @@
 /**
  * Importar el lote de procesos desde una foto/captura de una tabla tipo
- * "Job | Llegada | Unidades de CPU" (formato Silberschatz/Stallings típico
- * de la práctica). Usa Tesseract.js (OCR 100% en el navegador, sin API key
- * ni backend) para leer los números y reconstruye las filas agrupando
- * palabras por posición: primero por coordenada Y (fila), después por X
- * (columna) dentro de cada fila.
- *
- * Es heurístico, no un modelo entrenado para tablas — funciona bien con
- * fotos derechas y nítidas de tablas de 3 columnas numéricas, pero puede
- * fallar con fotos torcidas, borrosas o con formatos distintos. Por eso
- * siempre se le pide al usuario que revise los valores antes de simular.
+ * "Job | Llegada | Unidades de CPU". La imagen se reduce en el navegador
+ * (para subir menos datos y respetar el límite de tamaño de la función) y
+ * se manda a /api/parse-image, que le pide a Gemini que lea la tabla y
+ * devuelva los procesos como JSON. La API key de Gemini vive solo en el
+ * servidor (variable de entorno en Vercel), nunca acá.
  */
 import { replaceRows } from './table.js';
-
-const TESSERACT_SRC = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
 
 const dropZone = document.getElementById('imgDrop');
 const input = document.getElementById('imgInput');
 const msg = document.getElementById('imgMsg');
 
-let tesseractLoadPromise = null;
+const MAX_DIM = 1600;
+const JPEG_QUALITY = 0.85;
 
-function loadTesseract() {
-  if (window.Tesseract) return Promise.resolve();
-  if (tesseractLoadPromise) return tesseractLoadPromise;
-  tesseractLoadPromise = new Promise((resolve, reject) => {
-    const script = document.createElement('script');
-    script.src = TESSERACT_SRC;
-    script.onload = () => resolve();
-    script.onerror = () => reject(new Error('No se pudo cargar la librería de OCR (revisá tu conexión).'));
-    document.head.appendChild(script);
+/** Reduce la imagen a un tamaño manejable y la devuelve como data URL (JPEG). */
+function toResizedDataURL(file) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      let { width, height } = img;
+      if (width > MAX_DIM || height > MAX_DIM) {
+        const scale = MAX_DIM / Math.max(width, height);
+        width = Math.round(width * scale);
+        height = Math.round(height * scale);
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+      resolve(canvas.toDataURL('image/jpeg', JPEG_QUALITY));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('No se pudo leer el archivo como imagen.')); };
+    img.src = url;
   });
-  return tesseractLoadPromise;
-}
-
-/** Agrupa palabras numéricas en filas por cercanía vertical, y las ordena de izquierda a derecha dentro de cada fila. */
-function wordsToRows(words) {
-  const numeric = words
-    .filter((w) => /^\d+$/.test(w.text.trim()))
-    .map((w) => ({
-      value: parseInt(w.text, 10),
-      cx: (w.bbox.x0 + w.bbox.x1) / 2,
-      cy: (w.bbox.y0 + w.bbox.y1) / 2,
-      h: w.bbox.y1 - w.bbox.y0
-    }));
-  if (numeric.length === 0) return [];
-
-  numeric.sort((a, b) => a.cy - b.cy);
-  const avgH = numeric.reduce((s, w) => s + w.h, 0) / numeric.length;
-  const rowGap = avgH * 0.7;
-
-  const rows = [];
-  let current = [];
-  let currentY = null;
-  numeric.forEach((w) => {
-    if (currentY === null || Math.abs(w.cy - currentY) <= rowGap) {
-      current.push(w);
-      currentY = current.reduce((s, x) => s + x.cy, 0) / current.length;
-    } else {
-      rows.push(current);
-      current = [w];
-      currentY = w.cy;
-    }
-  });
-  if (current.length) rows.push(current);
-
-  return rows.map((row) => row.sort((a, b) => a.cx - b.cx).map((w) => w.value));
-}
-
-/** Espera exactamente 3 números por fila: Job, Llegada, Ráfaga de CPU. */
-function rowsToProcesses(rows) {
-  const procs = [];
-  let skipped = 0;
-  rows.forEach((row) => {
-    if (row.length !== 3) { skipped++; return; }
-    const [job, arrival, burst] = row;
-    procs.push({ name: `P${job}`, arrival, burst, priority: procs.length + 1 });
-  });
-  return { procs, skipped };
 }
 
 function setMsg(text, kind) {
@@ -91,25 +50,31 @@ async function handleFile(file) {
     setMsg('Eso no es una imagen. Soltá una foto o captura de la tabla (JPG, PNG...).', 'err');
     return;
   }
+
   dropZone.setAttribute('aria-disabled', 'true');
-  setMsg('Cargando el lector de imágenes…');
+  setMsg('Leyendo la tabla con IA… puede tardar unos segundos.');
 
   try {
-    await loadTesseract();
-    setMsg('Leyendo la tabla de la imagen… puede tardar unos segundos.');
+    const dataUrl = await toResizedDataURL(file);
 
-    const { data } = await window.Tesseract.recognize(file, 'eng');
-    const rows = wordsToRows(data.words || []);
-    const { procs, skipped } = rowsToProcesses(rows);
+    const resp = await fetch('/api/parse-image', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image: dataUrl })
+    });
+    const result = await resp.json();
 
-    if (procs.length === 0) {
-      setMsg('No pude reconocer ninguna fila con 3 números (Job, Llegada, Ráfaga). Probá con una foto más nítida y derecha, o cargalo a mano.', 'err');
+    if (!result.ok) {
+      setMsg(result.error || 'No se pudo leer la imagen.', 'err');
+      return;
+    }
+    if (result.procs.length === 0) {
+      setMsg('No reconocí ninguna fila válida en la tabla. Probá con una foto más nítida, o cargalo a mano.', 'err');
       return;
     }
 
-    replaceRows(procs);
-    const note = skipped > 0 ? ` (${skipped} fila(s) no se pudieron leer bien, revisalas)` : '';
-    setMsg(`Se importaron ${procs.length} proceso(s) desde la imagen${note}. Revisá los números antes de simular — el OCR no es perfecto.`, skipped > 0 ? 'warn' : '');
+    replaceRows(result.procs);
+    setMsg(`Se importaron ${result.procs.length} proceso(s) desde la imagen. Revisá los números antes de simular.`);
   } catch (err) {
     setMsg(`No se pudo leer la imagen: ${err.message}`, 'err');
   } finally {
