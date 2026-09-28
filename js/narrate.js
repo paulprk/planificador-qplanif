@@ -72,7 +72,7 @@ export function buildNarration({ procs, segments: rawSegments, finish, algo, qua
   procs.forEach((p) => { if (finish[p.id] > makespan) makespan = finish[p.id]; });
 
   const events = {};
-  const push = (t, kind, text) => { (events[t] = events[t] || []).push({ kind, text }); };
+  const push = (t, kind, text, id) => { (events[t] = events[t] || []).push({ kind, text, id }); };
 
   // Quiénes esperan a la CPU (res=0) o a un dispositivo (res>0) en el instante t, con su próximo tramo.
   const waiting = (t, res) => {
@@ -134,7 +134,7 @@ export function buildNarration({ procs, segments: rawSegments, finish, algo, qua
   };
 
   procs.forEach((p) => {
-    push(p.arrival, 'arrive', `${p.name} llega y entra a la cola de listos.`);
+    push(p.arrival, 'arrive', `${p.name} llega y entra a la cola de listos.`, p.id);
   });
 
   procs.forEach((p) => {
@@ -146,10 +146,10 @@ export function buildNarration({ procs, segments: rawSegments, finish, algo, qua
       // Salidas
       if (s.res === 0) {
         if (isLast) {
-          push(s.end, 'end', `${p.name} termina su ejecución (retorno = ${finish[p.id] - p.arrival}).`);
+          push(s.end, 'end', `${p.name} termina su ejecución en t=${finish[p.id]} (retorno = ${finish[p.id]} − ${p.arrival} = ${finish[p.id] - p.arrival}).`, p.id);
         } else if (next.res !== 0) {
-          push(s.end, 'burst-end', `${p.name} termina su ráfaga de CPU y pide ${resName(next.res)}.`);
-          if (next.start > s.end) push(s.end, 'blocked', `${resName(next.res)} está ocupado, así que ${p.name} espera en su cola.`);
+          push(s.end, 'burst-end', `${p.name} termina su ráfaga de CPU y pide ${resName(next.res)}.`, p.id);
+          if (next.start > s.end) push(s.end, 'blocked', `${resName(next.res)} está ocupado, así que ${p.name} espera en su cola.`, p.id);
         } else {
           const x = startsAt(s.end, 0);
           let reason = 'deja la CPU y vuelve a la cola de listos.';
@@ -164,15 +164,15 @@ export function buildNarration({ procs, segments: rawSegments, finish, algo, qua
                 : `agota su quantum (${quantum}) y vuelve al final de su cola de listos.`;
             }
           }
-          push(s.end, 'preempt', `${p.name} ${reason}`);
+          push(s.end, 'preempt', `${p.name} ${reason}`, p.id);
         }
       } else if (isLast) {
-        push(s.end, 'end', `${p.name} termina de usar ${R} y finaliza (retorno = ${finish[p.id] - p.arrival}).`);
+        push(s.end, 'end', `${p.name} termina de usar ${R} y finaliza en t=${finish[p.id]} (retorno = ${finish[p.id]} − ${p.arrival} = ${finish[p.id] - p.arrival}).`, p.id);
       } else if (next.res === 0) {
-        push(s.end, 'io-end', `${p.name} termina de usar ${R} y vuelve a la cola de listos.`);
+        push(s.end, 'io-end', `${p.name} termina de usar ${R} y vuelve a la cola de listos.`, p.id);
       } else {
-        push(s.end, 'io-end', `${p.name} termina de usar ${R} y pide ${resName(next.res)}.`);
-        if (next.start > s.end) push(s.end, 'blocked', `${resName(next.res)} está ocupado, así que ${p.name} espera en su cola.`);
+        push(s.end, 'io-end', `${p.name} termina de usar ${R} y pide ${resName(next.res)}.`, p.id);
+        if (next.start > s.end) push(s.end, 'blocked', `${resName(next.res)} está ocupado, así que ${p.name} espera en su cola.`, p.id);
       }
     });
   });
@@ -180,9 +180,9 @@ export function buildNarration({ procs, segments: rawSegments, finish, algo, qua
   procs.forEach((p) => {
     segsOf[p.id].forEach((s) => {
       if (s.res === 0) {
-        push(s.start, 'cpu', `${p.name} pasa a la CPU: ${whyCpu(s.start, s)}`);
+        push(s.start, 'cpu', `${p.name} pasa a la CPU: ${whyCpu(s.start, s)}`, p.id);
       } else {
-        push(s.start, 'io', `${p.name} empieza a usar ${resName(s.res)}: ${whyDevice(s.start, s)}`);
+        push(s.start, 'io', `${p.name} empieza a usar ${resName(s.res)}: ${whyDevice(s.start, s)}`, p.id);
       }
     });
   });
@@ -232,6 +232,15 @@ function chip(procs, id, extra) {
   return c;
 }
 
+function eventText(li, ev) {
+  const p = ev.id != null ? data.procs.find((x) => x.id === ev.id) : null;
+  if (!p) { li.textContent = ev.text; return; }
+  li.style.borderLeftColor = `var(--${colorFor(data.procs, p.id)})`;
+  if (ev.text.startsWith(`${p.name} `)) {
+    li.append(chip(data.procs, p.id, '').firstChild, document.createTextNode(` ${ev.text}`));
+  } else li.textContent = ev.text;
+}
+
 function stateRow(label, nodes) {
   const row = document.createElement('div');
   row.className = 'nar-state-row';
@@ -265,7 +274,7 @@ export function setNarrationData(input, seek) {
     const ul = document.createElement('ul');
     data.events[t].forEach((ev) => {
       const l = document.createElement('li');
-      l.textContent = ev.text;
+      eventText(l, ev);
       ul.appendChild(l);
     });
     li.append(btn, ul);
@@ -295,7 +304,7 @@ export function renderNarrationAt(t) {
   evs.forEach((ev) => {
     const li = document.createElement('li');
     li.className = `nar-${ev.kind}`;
-    li.textContent = ev.text;
+    eventText(li, ev);
     ul.appendChild(li);
   });
 
