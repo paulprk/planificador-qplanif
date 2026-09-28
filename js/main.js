@@ -87,6 +87,17 @@ function burstSeqText(t) {
   return frag;
 }
 
+function ioField(type, value, field, idx, extra) {
+  const input = document.createElement('input');
+  input.type = type;
+  input.className = type === 'text' ? 'name-cell' : 'num-cell io-num';
+  input.value = value;
+  input.dataset.ioField = field;
+  input.dataset.ioIdx = idx;
+  if (extra) Object.assign(input, extra);
+  return input;
+}
+
 function renderIoSummary() {
   ioSummary.innerHTML = '';
   if (!ioTasks) return;
@@ -105,11 +116,16 @@ function renderIoSummary() {
     const sw = document.createElement('span');
     sw.className = 'swatch';
     sw.style.background = `var(--${PALETTE[i % PALETTE.length]})`;
-    name.append(sw, document.createTextNode(t.name));
+    name.append(sw, ioField('text', t.name, 'name', i));
 
     const meta = document.createElement('span');
     meta.className = 'meta';
-    meta.textContent = `llega ${t.arrival}, prioridad ${t.priority}`;
+    meta.append(
+      'llega ',
+      ioField('number', t.arrival, 'arrival', i, { min: 0 }),
+      ', prioridad ',
+      ioField('number', t.priority, 'priority', i, { min: 0 })
+    );
 
     const seq = document.createElement('span');
     seq.className = 'seq';
@@ -119,6 +135,22 @@ function renderIoSummary() {
     ioSummary.appendChild(row);
   });
 }
+
+ioSummary.addEventListener('input', (e) => {
+  const field = e.target.dataset.ioField;
+  if (!field || !ioTasks) return;
+  const idx = Number(e.target.dataset.ioIdx);
+  const task = ioTasks[idx];
+  if (!task) return;
+
+  if (field === 'name') {
+    task.name = e.target.value || `P${idx + 1}`;
+  } else {
+    const n = parseInt(e.target.value, 10);
+    task[field] = isNaN(n) ? 0 : n;
+  }
+  codeInput.value = defTextFromIoTasks(ioTasks, ioResourceNames);
+});
 
 function setMode(newMode) {
   mode = newMode;
