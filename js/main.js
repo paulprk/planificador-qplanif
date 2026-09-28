@@ -29,7 +29,6 @@ const errMsg = document.getElementById('errMsg');
 const procTable = document.getElementById('procTable');
 const addRowBtn = document.getElementById('addRow');
 const ioSummary = document.getElementById('ioSummary');
-const codeBox = document.getElementById('codeBox');
 const codeInput = document.getElementById('codeInput');
 
 const RESOURCE_ALGO_NAMES = { fcfs: 'FCFS', sjf: 'SJF', pri: 'Prioridades' };
@@ -129,7 +128,6 @@ function setMode(newMode) {
     if (ioTasks) {
       codeInput.value = defTextFromIoTasks(ioTasks, ioResourceNames);
     } else {
-      codeBox.hidden = false;
       codeInput.focus();
     }
   }
@@ -145,11 +143,6 @@ document.querySelectorAll('.mode-btn').forEach((btn) => {
 });
 
 // --- Carga de procesos por código (formato .def de qplanif) ---
-document.getElementById('toggleCode').addEventListener('click', () => {
-  codeBox.hidden = !codeBox.hidden;
-  if (!codeBox.hidden) codeInput.focus();
-});
-
 document.getElementById('loadCode').addEventListener('click', () => {
   const msg = document.getElementById('codeMsg');
   msg.className = 'code-msg';
