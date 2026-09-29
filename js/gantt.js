@@ -8,6 +8,7 @@
  *                                        — pinta el resultado de una simulación nueva y arranca la reproducción
  */
 import { PALETTE, colorFor } from './colors.js';
+import { setFlipDuration } from './flip.js';
 import { setReadyQueueData, renderReadyQueueAt } from './readyqueue.js';
 import { stateIntervals } from './metrics.js';
 import { setNarrationData, renderNarrationAt, initNarrationMap } from './narrate.js';
@@ -111,6 +112,7 @@ function startPlayback() {
   if (currentInstant >= maxInstant) currentInstant = 0;
   playing = true;
   updatePlayBtn();
+  setFlipDuration(Math.max(120, (BASE_STEP_MS / speed) * 0.9));
   playTimer = setInterval(() => {
     if (currentInstant >= maxInstant) { pausePlayback(); return; }
     setInstant(currentInstant + 1);
@@ -118,6 +120,7 @@ function startPlayback() {
 }
 
 function pausePlayback() {
+  setFlipDuration(550);
   playing = false;
   clearInterval(playTimer);
   updatePlayBtn();

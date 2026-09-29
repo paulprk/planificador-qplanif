@@ -7,6 +7,7 @@
  */
 import { ioReadyQueueAt, ioAuxCountAt } from './iosim.js';
 import { colorFor } from './colors.js';
+import { flipRender, resetFlip } from './flip.js';
 
 const wrapEl = document.getElementById('readyQueueWrap');
 
@@ -66,6 +67,7 @@ function renderChips(container, tasks, auxCount = 0, t = 0, emptyText = 'vacía'
     const colorKey = colorFor(lastProcs, p.id);
     const chip = document.createElement('span');
     chip.className = 'ready-chip' + (i < auxCount ? ' aux' : '');
+    chip.dataset.pid = p.id;
     if (i < auxCount) chip.title = 'Volvió de E/S con quantum pendiente: se atiende antes que la cola de listos.';
     chip.style.background = `var(--${colorKey}-soft)`;
     chip.style.borderColor = `var(--${colorKey})`;
@@ -102,6 +104,7 @@ export function setReadyQueueData({ algo, procs, segments, finish, readyLog, ioM
   lastIoMode = Boolean(ioMode);
   lastResourceLabels = resourceLabels || null;
   lastVrrLog = vrrLog || null;
+  resetFlip();
 
   wrapEl.innerHTML = '';
   if (!procs) return;
@@ -122,6 +125,10 @@ export function setReadyQueueData({ algo, procs, segments, finish, readyLog, ioM
 
 export function renderReadyQueueAt(t) {
   if (!lastProcs) return;
+  flipRender([wrapEl], () => drawReadyQueueAt(t), t, 'ready');
+}
+
+function drawReadyQueueAt(t) {
 
   if (lastIoMode) {
     const vrr = lastAlgo === 'vrr';

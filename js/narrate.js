@@ -7,6 +7,7 @@
  * que dibuja el panel está al final del archivo.
  */
 import { stateIntervals } from './metrics.js';
+import { flipRender, resetFlip } from './flip.js';
 import { colorFor } from './colors.js';
 
 function list(items) {
@@ -302,6 +303,7 @@ function dot(procs, id) {
 function chip(procs, id, extra) {
   const c = document.createElement('span');
   c.className = 'nar-chip';
+  c.dataset.pid = id;
   c.append(dot(procs, id), document.createTextNode(` ${procs.find((p) => p.id === id).name}${extra || ''}`));
   return c;
 }
@@ -344,6 +346,7 @@ function stateRow(label, nodes) {
 
 export function setNarrationData(input, seek) {
   data = { ...buildNarration(input), procs: input.procs, resourceLabels: input.resourceLabels };
+  resetFlip();
   onSeek = seek;
   const log = document.getElementById('narrationLog');
   log.innerHTML = '';
@@ -518,27 +521,29 @@ export function renderNarrationAt(t) {
     ul.appendChild(li);
   });
 
-  renderMap(t);
   const box = document.getElementById('narrationState');
-  box.innerHTML = '';
-  if (t >= data.makespan || mapOpen) {
-    box.hidden = true;
-  } else {
-    box.hidden = false;
-    const st = data.stateAt(t);
-    const labels = data.resourceLabels || ['CPU'];
-    st.running.forEach((r, i) => {
-      if (i === 0 && !r && st.switching) {
-        box.appendChild(stateRow(`En ${labels[0]}`, [document.createTextNode('cambio de contexto → '), chip(data.procs, st.switching.to, ' (se está cargando)')]));
-        return;
-      }
-      box.appendChild(stateRow(`En ${labels[i]}`, r ? [chip(data.procs, r.id, r.left != null ? (r.quantumLeft != null ? ` (ráfaga restante ${r.left} · quantum restante ${r.quantumLeft})` : ` (le quedan ${r.left})`) : '')] : []));
-    });
-    box.appendChild(stateRow('Esperan CPU', st.readyIds.map((id) => chip(data.procs, id))));
-    st.devWaiting.forEach((ids, i) => {
-      box.appendChild(stateRow(`Esperan ${labels[i + 1]}`, ids.map((id) => chip(data.procs, id))));
-    });
-  }
+  flipRender([box, document.getElementById('narrationMap')], () => {
+    renderMap(t);
+    box.innerHTML = '';
+    if (t >= data.makespan || mapOpen) {
+      box.hidden = true;
+    } else {
+      box.hidden = false;
+      const st = data.stateAt(t);
+      const labels = data.resourceLabels || ['CPU'];
+      st.running.forEach((r, i) => {
+        if (i === 0 && !r && st.switching) {
+          box.appendChild(stateRow(`En ${labels[0]}`, [document.createTextNode('cambio de contexto → '), chip(data.procs, st.switching.to, ' (se está cargando)')]));
+          return;
+        }
+        box.appendChild(stateRow(`En ${labels[i]}`, r ? [chip(data.procs, r.id, r.left != null ? (r.quantumLeft != null ? ` (ráfaga restante ${r.left} · quantum restante ${r.quantumLeft})` : ` (le quedan ${r.left})`) : '')] : []));
+      });
+      box.appendChild(stateRow('Esperan CPU', st.readyIds.map((id) => chip(data.procs, id))));
+      st.devWaiting.forEach((ids, i) => {
+        box.appendChild(stateRow(`Esperan ${labels[i + 1]}`, ids.map((id) => chip(data.procs, id))));
+      });
+    }
+  }, t, 'narration');
 
   document.querySelectorAll('#narrationLog > li').forEach((li) => {
     li.classList.toggle('active', parseInt(li.dataset.t, 10) === t);
