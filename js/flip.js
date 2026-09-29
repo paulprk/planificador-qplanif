@@ -8,10 +8,12 @@
 const lastT = new Map();
 let duration = 420;
 
-const reduced = () => window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+let enabled = true;
 
-export function setFlipDuration(ms) {
-  duration = ms;
+const reduced = () => !enabled || (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+export function setFlipEnabled(on) {
+  enabled = on;
 }
 
 export function resetFlip() {
