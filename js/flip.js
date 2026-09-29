@@ -62,3 +62,28 @@ export function flipRender(hosts, render, t, key) {
     anim.onfinish = anim.oncancel = () => { el.style.position = ''; el.style.zIndex = ''; };
   }); });
 }
+
+/** Cambio de texto entre instantes: los renglones nuevos aparecen de a uno y la altura se ajusta de a poco, para que no salte todo lo de abajo. */
+export function fadeSwap(host, render, t, key) {
+  const prev = lastT.get(key);
+  lastT.set(key, t);
+  const animate = prev !== undefined && Math.abs(t - prev) === 1 && !reduced();
+  const oldH = host.offsetHeight;
+  render();
+  if (!animate) return;
+  const newH = host.offsetHeight;
+  [...host.children].forEach((li, i) => {
+    li.animate(
+      [{ opacity: 0, transform: 'translateY(10px)' }, { opacity: 1, transform: 'translateY(0)' }],
+      { duration: duration * 0.8, delay: i * Math.min(100, duration * 0.15), easing: 'ease-out', fill: 'backwards' }
+    );
+  });
+  if (oldH !== newH) {
+    host.style.overflow = 'hidden';
+    const a = host.animate(
+      [{ height: `${oldH}px` }, { height: `${newH}px` }],
+      { duration: duration * 0.8, easing: 'ease-out' }
+    );
+    a.onfinish = a.oncancel = () => { host.style.overflow = ''; };
+  }
+}

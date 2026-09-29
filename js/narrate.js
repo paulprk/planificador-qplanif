@@ -7,7 +7,7 @@
  * que dibuja el panel está al final del archivo.
  */
 import { stateIntervals } from './metrics.js';
-import { flipRender, resetFlip } from './flip.js';
+import { flipRender, fadeSwap, resetFlip } from './flip.js';
 import { colorFor } from './colors.js';
 
 function list(items) {
@@ -500,26 +500,28 @@ export function renderNarrationAt(t) {
   if (!data) return;
   document.getElementById('narrationT').textContent = `Instante ${t}`;
   const ul = document.getElementById('narrationEvents');
-  ul.innerHTML = '';
-  const evs = data.events[t] || [];
-  if (evs.length === 0) {
-    const li = document.createElement('li');
-    li.className = 'nar-empty';
-    li.textContent = 'No cambia nada en este instante: cada proceso sigue con lo que venía haciendo.';
-    ul.appendChild(li);
-  }
-  if (t === 0 && data.makespan > 0) {
-    const hint = document.createElement('li');
-    hint.className = 'nar-hint';
-    hint.textContent = 'Recién empieza. Tocá ▶ Reproducir, o avanzá de a un instante con la flecha → del teclado, y acá se explica qué decide el planificador y por qué.';
-    ul.appendChild(hint);
-  }
-  evs.forEach((ev) => {
-    const li = document.createElement('li');
-    li.className = `nar-${ev.kind}`;
-    eventText(li, ev);
-    ul.appendChild(li);
-  });
+  fadeSwap(ul, () => {
+    ul.innerHTML = '';
+    const evs = data.events[t] || [];
+    if (evs.length === 0) {
+      const li = document.createElement('li');
+      li.className = 'nar-empty';
+      li.textContent = 'No cambia nada en este instante: cada proceso sigue con lo que venía haciendo.';
+      ul.appendChild(li);
+    }
+    if (t === 0 && data.makespan > 0) {
+      const hint = document.createElement('li');
+      hint.className = 'nar-hint';
+      hint.textContent = 'Recién empieza. Tocá ▶ Reproducir, o avanzá de a un instante con la flecha → del teclado, y acá se explica qué decide el planificador y por qué.';
+      ul.appendChild(hint);
+    }
+    evs.forEach((ev) => {
+      const li = document.createElement('li');
+      li.className = `nar-${ev.kind}`;
+      eventText(li, ev);
+      ul.appendChild(li);
+    });
+  }, t, 'events');
 
   const box = document.getElementById('narrationState');
   flipRender([box, document.getElementById('narrationMap')], () => {
