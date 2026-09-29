@@ -103,8 +103,8 @@ function setInstant(t) {
   instantSliderEl.value = currentInstant;
   instantLabelEl.textContent = `Instante: ${currentInstant} / ${maxInstant}`;
   updateReveal(currentInstant);
-  renderReadyQueueAt(currentInstant);
   renderNarrationAt(currentInstant);
+  renderReadyQueueAt(currentInstant);
 }
 
 function startPlayback() {

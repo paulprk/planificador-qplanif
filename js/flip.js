@@ -41,7 +41,7 @@ export function forgetKeys(...keys) {
  * su renglón y salen desde el texto hasta su nuevo lugar. Solo al avanzar
  * hacia adelante (o al arrancar en t = 0).
  */
-export function flipRender(hosts, render, t, key, cueHost) {
+export function flipRender(hosts, render, t, key, cueHost, mode = 'text') {
   const prev = lastT.get(key);
   lastT.set(key, t);
   const cued = !!cueHost && !reduced() && ((isStep(prev, t) && t > prev) || (isStart(prev, t) && inView(cueHost)));
@@ -66,7 +66,7 @@ export function flipRender(hosts, render, t, key, cueHost) {
       if (li.dataset.pid === undefined) return;
       const delay = i * stagger() + duration * 0.9;
       cues.set(li.dataset.pid, { delay, from: (li.querySelector('.chip-dot') || li.querySelector('.nar-main') || li).getBoundingClientRect() });
-      const d = li.querySelector('.chip-dot');
+      const d = mode === 'text' && li.querySelector('.chip-dot');
       if (d) d.animate([{ transform: 'scale(1)' }, { transform: 'scale(2)', offset: 0.4 }, { transform: 'scale(1)' }], { duration: duration * 0.7, delay, easing: 'ease-in-out' });
     });
   }
@@ -77,7 +77,7 @@ export function flipRender(hosts, render, t, key, cueHost) {
     if (now.width === 0) return;
     const cue = cues.get(el.dataset.pid);
     const moved = old && (Math.abs(old.x - (now.left - o.left)) >= 1 || Math.abs(old.y - (now.top - o.top)) >= 1);
-    if (cue && (!old || moved)) {
+    if (cue && (!old || (moved && mode === 'text'))) {
       el.style.position = 'relative';
       el.style.zIndex = '5';
       const a = el.animate(

@@ -7,7 +7,7 @@
  */
 import { ioReadyQueueAt, ioAuxCountAt } from './iosim.js';
 import { colorFor } from './colors.js';
-import { flipRender, resetFlip } from './flip.js';
+import { flipRender, resetFlip, forgetKeys } from './flip.js';
 
 const wrapEl = document.getElementById('readyQueueWrap');
 
@@ -20,15 +20,38 @@ let lastIoMode = false;
 let lastResourceLabels = null;
 let lastVrrLog = null;
 
-function makeRow(label, hint) {
+function makeRow(label, hint, opts = {}) {
   const row = document.createElement('div');
   row.className = 'ready-queue';
   const lab = document.createElement('span');
   lab.className = 'ready-queue-label';
   lab.textContent = label;
+  row.appendChild(lab);
+  if (opts.slotCap) {
+    const g = document.createElement('div');
+    g.className = 'rq-group';
+    const cap = document.createElement('span');
+    cap.className = 'rq-cap';
+    cap.textContent = opts.slotCap;
+    const slot = document.createElement('div');
+    slot.className = 'rq-slot-items';
+    slot.dataset.slotRes = opts.res;
+    g.append(cap, slot);
+    const arrow = document.createElement('span');
+    arrow.className = 'rq-arrow';
+    arrow.textContent = '◀';
+    arrow.title = 'Los procesos de la cola pasan de a uno hacia acá';
+    row.append(g, arrow);
+  }
+  const g2 = document.createElement('div');
+  g2.className = 'rq-group';
+  const cap2 = document.createElement('span');
+  cap2.className = 'rq-cap';
+  cap2.textContent = opts.queueCap || 'En espera';
   const items = document.createElement('div');
   items.className = 'ready-queue-items';
-  row.append(lab, items);
+  g2.append(cap2, items);
+  row.appendChild(g2);
   if (hint) {
     const h = document.createElement('p');
     h.className = 'ready-queue-hint';
@@ -39,10 +62,10 @@ function makeRow(label, hint) {
   return items;
 }
 
-const HINT_CPU = 'Procesos listos esperando la CPU, en el orden en que se atenderán: el 1 es el próximo en ejecutarse.';
+const HINT_CPU = 'A la izquierda, el proceso que está usando la CPU. A la derecha, la cola de listos en el orden en que se atenderán: el 1 ("próximo") es el siguiente en pasar a la CPU, y los que llegan o vuelven se ponen al final.';
 const HINT_CPU_VRR = 'Cola de listos normal: procesos que esperan la CPU y todavía no usaron su turno. Se atiende solo cuando la cola auxiliar está vacía. Cada uno recibe un quantum completo.';
 const HINT_AUX = 'Acá esperan los procesos que volvieron de E/S sin haber gastado todo su quantum. Se atiende ANTES que la cola de listos, y cada proceso usa solo el quantum que le sobraba ("resta"). Así no pierde su turno por haber ido a E/S.';
-const hintDevice = (label) => `Procesos esperando que el dispositivo ${label} se libere, en el orden en que se atenderán.`;
+const hintDevice = (label) => `A la izquierda, el proceso que está usando el dispositivo ${label}. A la derecha, los que esperan que se libere, en el orden en que se atenderán: el 1 ("próximo") es el siguiente.`;
 
 function restoAt(id, t) {
   if (!lastVrrLog) return null;
@@ -54,7 +77,7 @@ function restoAt(id, t) {
   return r;
 }
 
-function renderChips(container, tasks, auxCount = 0, t = 0, emptyText = 'vacía') {
+function renderChips(container, tasks, auxCount = 0, t = 0, emptyText = 'vacía', showNext = true) {
   container.innerHTML = '';
   if (tasks.length === 0) {
     const empty = document.createElement('span');
@@ -81,6 +104,13 @@ function renderChips(container, tasks, auxCount = 0, t = 0, emptyText = 'vacía'
     name.textContent = p.name;
     chip.appendChild(name);
 
+    if (i === 0 && showNext) {
+      const next = document.createElement('span');
+      next.className = 'next-tag';
+      next.textContent = 'próximo';
+      chip.appendChild(next);
+    }
+
     if (i < auxCount) {
       const resto = restoAt(p.id, t);
       if (resto != null) {
@@ -93,6 +123,35 @@ function renderChips(container, tasks, auxCount = 0, t = 0, emptyText = 'vacía'
 
     container.appendChild(chip);
   });
+  const entry = document.createElement('span');
+  entry.className = 'rq-entry';
+  entry.textContent = '← los nuevos se suman acá';
+  container.appendChild(entry);
+}
+
+function renderSlot(container, id) {
+  container.innerHTML = '';
+  const p = id != null ? lastProcs.find((x) => x.id === id) : null;
+  if (!p) {
+    const empty = document.createElement('span');
+    empty.className = 'ready-queue-empty';
+    empty.textContent = 'libre';
+    container.appendChild(empty);
+    return;
+  }
+  const colorKey = colorFor(lastProcs, p.id);
+  const chip = document.createElement('span');
+  chip.className = 'ready-chip running';
+  chip.dataset.pid = p.id;
+  chip.style.background = `var(--${colorKey}-soft)`;
+  chip.style.borderColor = `var(--${colorKey})`;
+  chip.textContent = p.name;
+  container.appendChild(chip);
+}
+
+function runningAt(res, t) {
+  const seg = lastSegments.find((s) => (s.res || 0) === res && s.start <= t && t < s.end);
+  return seg ? seg.id : null;
 }
 
 export function setReadyQueueData({ algo, procs, segments, finish, readyLog, ioMode, resourceLabels, vrrLog }) {
@@ -113,20 +172,29 @@ export function setReadyQueueData({ algo, procs, segments, finish, readyLog, ioM
     const vrr = algo === 'vrr';
     lastResourceLabels.forEach((label, res) => {
       if (res === 0 && vrr) {
-        makeRow('Cola auxiliar (VRR)', HINT_AUX).dataset.res = 'aux';
+        makeRow('Cola auxiliar (VRR)', HINT_AUX, { queueCap: 'En espera' }).dataset.res = 'aux';
       }
       const hint = res === 0 ? (vrr ? HINT_CPU_VRR : HINT_CPU) : hintDevice(label);
-      makeRow(label, hint).dataset.res = res;
+      makeRow(label, hint, { slotCap: res === 0 ? 'Ejecutando' : 'Usando', queueCap: 'En espera', res }).dataset.res = res;
     });
   } else {
-    makeRow('Cola de listos', HINT_CPU).id = 'readyQueueItemsSimple';
+    makeRow('CPU', HINT_CPU, { slotCap: 'Ejecutando', queueCap: 'Cola de listos', res: 0 }).id = 'readyQueueItemsSimple';
   }
 }
 
+let shownT = -1;
+
 export function renderReadyQueueAt(t) {
   if (!lastProcs) return;
-  flipRender([wrapEl], () => drawReadyQueueAt(t), t, 'ready');
+  shownT = t;
+  flipRender([wrapEl], () => drawReadyQueueAt(t), t, 'ready', document.getElementById('narrationEvents'), 'delay');
 }
+
+window.addEventListener('narration-start-replay', () => {
+  if (shownT !== 0) return;
+  forgetKeys('ready');
+  renderReadyQueueAt(0);
+});
 
 function drawReadyQueueAt(t) {
 
@@ -139,8 +207,10 @@ function drawReadyQueueAt(t) {
       const ids = ioReadyQueueAt(lastReadyLog, res, t);
       const tasks = ids.map((id) => lastProcs.find((p) => p.id === id)).filter(Boolean);
       if (isAux) renderChips(el, tasks.slice(0, auxCount), auxCount, t, 'vacía: nadie volvió de E/S con quantum pendiente');
-      else renderChips(el, res === 0 && vrr ? tasks.slice(auxCount) : tasks);
+      else if (res === 0 && vrr) renderChips(el, tasks.slice(auxCount), 0, t, 'vacía', auxCount === 0);
+      else renderChips(el, tasks);
     });
+    wrapEl.querySelectorAll('.rq-slot-items').forEach((el) => renderSlot(el, runningAt(Number(el.dataset.slotRes), t)));
     return;
   }
 
@@ -148,4 +218,5 @@ function drawReadyQueueAt(t) {
   if (!items) return;
   const ids = ioReadyQueueAt(lastReadyLog, 0, t);
   renderChips(items, ids.map((id) => lastProcs.find((p) => p.id === id)).filter(Boolean));
+  wrapEl.querySelectorAll('.rq-slot-items').forEach((el) => renderSlot(el, runningAt(0, t)));
 }

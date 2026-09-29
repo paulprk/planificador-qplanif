@@ -508,6 +508,7 @@ function watchStart() {
     pendingStart = false;
     forgetKeys('events', 'narration');
     renderNarrationAt(0);
+    window.dispatchEvent(new Event('narration-start-replay'));
   };
   window.addEventListener('scroll', check, { passive: true });
   window.addEventListener('resize', check);

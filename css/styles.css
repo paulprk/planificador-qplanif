@@ -702,6 +702,25 @@ button:focus-visible, select:focus-visible, input:focus-visible {
   flex-wrap: wrap;
   min-height: 1.7rem;
 }
+.rq-group { display: flex; align-items: center; gap: 0.45rem; flex-wrap: wrap; }
+.rq-cap {
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.rq-slot-items { display: flex; align-items: center; min-height: 1.7rem; min-width: 3.4rem; }
+.rq-arrow { color: var(--ink-soft); font-size: 0.8rem; }
+.rq-entry { font-size: 0.7rem; color: var(--ink-soft); font-style: italic; }
+.ready-chip.running { padding: 0.22rem 0.7rem; box-shadow: 0 0 0 2px var(--accent-soft); }
+.ready-chip .next-tag {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
 .ready-queue-empty {
   font-size: 0.8rem;
   color: var(--ink-soft);
