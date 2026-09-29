@@ -24,9 +24,9 @@ const isStart = (prev, t) => prev === undefined && t === 0;
 
 /**
  * Con `cueHost` (la lista de explicaciones, con `data-pid` en cada renglón),
- * las fichas de un proceso con explicación esperan a que aparezca su renglón:
- * si llegan al panel nuevas, salen desde el texto; si ya estaban, viajan
- * recién entonces. Solo al avanzar hacia adelante (o al arrancar en t = 0).
+ * las fichas de un proceso con explicación esperan a que termine de aparecer
+ * su renglón y salen desde el texto hasta su nuevo lugar. Solo al avanzar
+ * hacia adelante (o al arrancar en t = 0).
  */
 export function flipRender(hosts, render, t, key, cueHost) {
   const prev = lastT.get(key);
@@ -35,7 +35,7 @@ export function flipRender(hosts, render, t, key, cueHost) {
   const animate = (isStep(prev, t) || cued) && !reduced();
 
   const before = new Map();
-  if (animate) {
+  if (animate && !isStart(prev, t)) {
     hosts.forEach((h, hi) => {
       const o = h.getBoundingClientRect();
       h.querySelectorAll('[data-pid]').forEach((el) => {
@@ -51,7 +51,10 @@ export function flipRender(hosts, render, t, key, cueHost) {
   if (cued) {
     [...cueHost.children].forEach((li, i) => {
       if (li.dataset.pid === undefined) return;
-      cues.set(li.dataset.pid, { delay: i * stagger() + duration * 0.3, from: (li.querySelector('.nar-main') || li).getBoundingClientRect() });
+      const delay = i * stagger() + duration * 0.9;
+      cues.set(li.dataset.pid, { delay, from: (li.querySelector('.chip-dot') || li.querySelector('.nar-main') || li).getBoundingClientRect() });
+      const d = li.querySelector('.chip-dot');
+      if (d) d.animate([{ transform: 'scale(1)' }, { transform: 'scale(2)', offset: 0.4 }, { transform: 'scale(1)' }], { duration: duration * 0.7, delay, easing: 'ease-in-out' });
     });
   }
 
@@ -60,15 +63,17 @@ export function flipRender(hosts, render, t, key, cueHost) {
     const now = el.getBoundingClientRect();
     if (now.width === 0) return;
     const cue = cues.get(el.dataset.pid);
-    if (!old && cue) {
+    const moved = old && (Math.abs(old.x - (now.left - o.left)) >= 1 || Math.abs(old.y - (now.top - o.top)) >= 1);
+    if (cue && (!old || moved)) {
       el.style.position = 'relative';
       el.style.zIndex = '5';
       const a = el.animate(
         [
-          { opacity: 0, transform: `translate(${cue.from.left - now.left}px, ${cue.from.top - now.top}px) scale(0.7)`, boxShadow: '0 0 0 3px var(--accent-soft)' },
-          { opacity: 1, transform: 'translate(0, 0) scale(1)', boxShadow: '0 0 0 0 transparent' }
+          { opacity: 0, transform: `translate(${cue.from.left - now.left}px, ${cue.from.top - now.top}px)`, boxShadow: '0 0 0 4px var(--accent-soft)', offset: 0 },
+          { opacity: 1, transform: `translate(${cue.from.left - now.left}px, ${cue.from.top - now.top}px)`, boxShadow: '0 0 0 4px var(--accent-soft)', offset: 0.1, easing: 'cubic-bezier(0.4, 0, 0.2, 1)' },
+          { opacity: 1, transform: 'translate(0, 0)', boxShadow: '0 0 0 0 transparent', offset: 1 }
         ],
-        { duration: duration * 1.1, delay: cue.delay, easing: 'cubic-bezier(0.3, 0.7, 0.2, 1)', fill: 'backwards' }
+        { duration: duration * 1.4, delay: cue.delay, easing: 'linear', fill: 'backwards' }
       );
       a.onfinish = a.oncancel = () => { el.style.position = ''; el.style.zIndex = ''; };
       return;
