@@ -487,6 +487,7 @@ function runSimulation() {
     algo,
     readyLog: result.readyLog,
     switches: result.switches,
+    quantumTrace: result.quantumTrace,
     agingLog: result.agingLog
   });
   showComparison({
@@ -547,6 +548,7 @@ function runIoSimulation() {
     readyLog: result.readyLog,
     vrrLog: result.vrrLog,
     switches: result.switches,
+    quantumTrace: result.quantumTrace,
     agingLog: result.agingLog,
     resourceLabels: result.resources,
     resourceAlgo

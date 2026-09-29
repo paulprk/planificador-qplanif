@@ -54,6 +54,7 @@ export function simulateWithResources({ tasks, resourceNames, cpuAlgo, resourceA
   const usesQuantum = cpuAlgo === 'rr' || cpuAlgo === 'pri_rr' || isVrr;
   const aux = [];
   const vrrLog = { aux: [], dispatch: [] };
+  const quantumTrace = [];
   const agingOn = aging > 0 && (cpuAlgo === 'pri' || cpuAlgo === 'pri_exp');
   const agingLog = [];
   const switches = [];
@@ -289,7 +290,10 @@ export function simulateWithResources({ tasks, resourceNames, cpuAlgo, resourceA
       const task = running[res];
       if (!task) continue;
       task.remaining--;
-      if (res === 0 && usesQuantum) task.quantumLeft--;
+      if (res === 0 && usesQuantum) {
+        quantumTrace.push({ t, id: task.id, left: task.quantumLeft });
+        task.quantumLeft--;
+      }
     }
     t++;
     // Dentro de un mismo instante (igual que qplanif): primero vuelven los que terminan E/S, después las llegadas nuevas y al final el desalojado.
@@ -310,7 +314,7 @@ export function simulateWithResources({ tasks, resourceNames, cpuAlgo, resourceA
     }
   });
 
-  return { segments: merged, finish, resources: ['CPU', ...resourceNames], readyLog, vrrLog: isVrr ? vrrLog : null, switches, agingLog, guard, completed, total: state.length };
+  return { segments: merged, finish, resources: ['CPU', ...resourceNames], readyLog, vrrLog: isVrr ? vrrLog : null, quantumTrace: usesQuantum ? quantumTrace : null, switches, agingLog, guard, completed, total: state.length };
 }
 
 /** Cola de listos de un recurso puntual (0=CPU, 1..N=recursos) en el instante `t`. */

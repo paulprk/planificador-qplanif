@@ -58,7 +58,7 @@ function annotate(procs, segments) {
  * @param resourceAlgo algoritmo de las colas de E/S ('fcfs' | 'sjf' | 'pri') o null en modo simple
  * @param resourceLabels null en modo simple; ['CPU', 'R1', ...] en modo E/S
  */
-export function buildNarration({ procs, segments: rawSegments, finish, algo, quantum, resourceAlgo, resourceLabels, vrrLog, switches = [], agingLog = [] }) {
+export function buildNarration({ procs, segments: rawSegments, finish, algo, quantum, resourceAlgo, resourceLabels, vrrLog, switches = [], agingLog = [], quantumTrace = null }) {
   const segments = mergeAdjacent(rawSegments);
   const byId = {};
   procs.forEach((p) => { byId[p.id] = p; });
@@ -249,6 +249,9 @@ export function buildNarration({ procs, segments: rawSegments, finish, algo, qua
   });
   push(makespan, 'done', 'Terminó la simulación: todos los procesos finalizaron.');
 
+  const quantumAt = new Map();
+  if (quantumTrace) quantumTrace.forEach((q) => quantumAt.set(q.t, q));
+
   function stateAt(t) {
     const numRes = resourceLabels ? resourceLabels.length : 1;
     const running = [];
@@ -256,7 +259,8 @@ export function buildNarration({ procs, segments: rawSegments, finish, algo, qua
       const s = segments.find((x) => (x.res || 0) === r && x.start <= t && t < x.end);
       if (!s) { running.push(null); continue; }
       const ann = segsOf[s.id].find((a) => a.start === s.start && a.res === r);
-      running.push({ id: s.id, left: ann ? ann.rem - (t - s.start) : null });
+      const qt = r === 0 ? quantumAt.get(t) : null;
+      running.push({ id: s.id, left: ann ? ann.rem - (t - s.start) : null, quantumLeft: qt && qt.id === s.id ? qt.left : null });
     }
     const readyIds = waiting(t, 0).map((c) => c.id);
     const devWaiting = [];
@@ -419,6 +423,10 @@ function renderMap(t) {
   const at = (key) => data.procs.filter((p) => now[p.id] === key).map((p) => mk(p.id));
 
   const cpuChips = at('cpu');
+  const run0 = data.stateAt(t).running[0];
+  if (run0 && run0.quantumLeft != null && cpuChips.length === 1) {
+    cpuChips[0].append(document.createTextNode(` · quantum restante ${run0.quantumLeft}`));
+  }
   const sw = data.stateAt(t).switching;
   if (sw && cpuChips.length === 0) {
     const e = document.createElement('span');
@@ -524,7 +532,7 @@ export function renderNarrationAt(t) {
         box.appendChild(stateRow(`En ${labels[0]}`, [document.createTextNode('cambio de contexto → '), chip(data.procs, st.switching.to, ' (se está cargando)')]));
         return;
       }
-      box.appendChild(stateRow(`En ${labels[i]}`, r ? [chip(data.procs, r.id, r.left != null ? ` (le quedan ${r.left})` : '')] : []));
+      box.appendChild(stateRow(`En ${labels[i]}`, r ? [chip(data.procs, r.id, r.left != null ? (r.quantumLeft != null ? ` (ráfaga restante ${r.left} · quantum restante ${r.quantumLeft})` : ` (le quedan ${r.left})`) : '')] : []));
     });
     box.appendChild(stateRow('Esperan CPU', st.readyIds.map((id) => chip(data.procs, id))));
     st.devWaiting.forEach((ids, i) => {
