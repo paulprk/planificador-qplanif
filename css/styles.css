@@ -353,6 +353,8 @@ input.num-cell { width: 4.5rem; font-variant-numeric: tabular-nums; text-align: 
 input.name-cell { width: 6.5rem; }
 #quantumField { display: none; }
 #quantumField.show { display: flex; }
+#agingField { display: none; }
+#agingField.show { display: flex; }
 #resourceAlgoField { display: none; }
 #resourceAlgoField.show { display: flex; }
 .proc-table.hide-pri .pri-col { display: none; }
@@ -928,6 +930,7 @@ button:focus-visible, select:focus-visible, input:focus-visible {
 .narration-events li.nar-arrive { border-left-color: var(--p1); }
 .narration-events li.nar-cpu, .narration-events li.nar-io { border-left-color: var(--accent); }
 .narration-events li.nar-end, .narration-events li.nar-done { border-left-color: var(--ink-soft); }
+.narration-events li.nar-switch, .narration-events li.nar-aging { border-left-color: var(--ink-soft); }
 .narration-events li.nar-preempt, .narration-events li.nar-blocked { border-left-color: var(--p2); }
 .narration-events li.nar-empty, .nar-empty {
   color: var(--ink-soft);
@@ -1196,6 +1199,12 @@ footer.note {
   border: 1.5px dashed var(--line-strong);
   background: transparent;
 }
+.seg-switch {
+  border-color: var(--ink-soft);
+  background: repeating-linear-gradient(45deg, transparent 0 3px, var(--ink-soft) 3px 4.5px), var(--surface-2);
+  color: var(--ink);
+}
+.state-swatch.seg-switch { --c: var(--ink-soft); }
 .state-swatch {
   position: relative;
   display: inline-block;

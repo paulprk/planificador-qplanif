@@ -15,12 +15,12 @@ function pickKey(policy, task) {
   switch (policy) {
     case 'sjf':
     case 'srtf':
-      return [task.remaining, task.queueEnterTime, task.order];
+      return [task.remaining, task.queueEnterTime, task.queueSeq];
     case 'pri':
     case 'pri_exp':
-      return [task.priority, task.queueEnterTime, task.order];
+      return [task.priority, task.queueEnterTime, task.queueSeq];
     case 'fcfs':
-      return [task.queueEnterTime, task.order];
+      return [task.queueEnterTime, task.queueSeq];
     default:
       return [task.queueSeq];
   }
@@ -33,7 +33,7 @@ function compareKeys(ka, kb) {
   return 0;
 }
 
-export function simulateWithResources({ tasks, resourceNames, cpuAlgo, resourceAlgo, quantum }) {
+export function simulateWithResources({ tasks, resourceNames, cpuAlgo, resourceAlgo, quantum, contextSwitch = 0, aging = 0 }) {
   const numResources = resourceNames.length;
   const state = tasks.map((t) => ({
     ...t,
@@ -41,7 +41,9 @@ export function simulateWithResources({ tasks, resourceNames, cpuAlgo, resourceA
     remaining: t.bursts[0].dur,
     queueEnterTime: t.arrival,
     quantumLeft: 0,
-    resto: 0
+    resto: 0,
+    basePriority: t.priority,
+    waitAge: 0
   }));
 
   const queues = [];
@@ -52,6 +54,11 @@ export function simulateWithResources({ tasks, resourceNames, cpuAlgo, resourceA
   const usesQuantum = cpuAlgo === 'rr' || cpuAlgo === 'pri_rr' || isVrr;
   const aux = [];
   const vrrLog = { aux: [], dispatch: [] };
+  const agingOn = aging > 0 && (cpuAlgo === 'pri' || cpuAlgo === 'pri_exp');
+  const agingLog = [];
+  const switches = [];
+  let switching = null;
+  let lastRan = null;
 
   const segments = [];
   const finish = {};
@@ -70,7 +77,9 @@ export function simulateWithResources({ tasks, resourceNames, cpuAlgo, resourceA
       return out;
     }
     if (res === 0 && isVrr) return aux.concat(queues[0]).map((task) => task.id);
-    return queues[res].map((task) => task.id);
+    const policy = policyForResource(res);
+    if (policy === 'rr') return queues[res].map((task) => task.id);
+    return queues[res].slice().sort((a, b) => compareKeys(pickKey(policy, a), pickKey(policy, b))).map((task) => task.id);
   }
   function snapAllQueues(time) {
     for (let res = 0; res <= numResources; res++) {
@@ -193,7 +202,19 @@ export function simulateWithResources({ tasks, resourceNames, cpuAlgo, resourceA
   processArrivalsAt(t); // arribos en t=0, antes de la primera decisión
 
   while (completed < state.length && guard++ < limit * 4 + 2000) {
-    if ((cpuAlgo === 'srtf' || cpuAlgo === 'pri_exp') && running[0] && queues[0].length > 0) {
+    let justLoaded = false;
+    if (switching && switching.left === 0) {
+      const k = switching.task;
+      switching = null;
+      running[0] = k;
+      startSeg(0, k, t);
+      lastRan = k.id;
+      k.priority = k.basePriority;
+      k.waitAge = 0;
+      justLoaded = true;
+    }
+
+    if (!justLoaded && (cpuAlgo === 'srtf' || cpuAlgo === 'pri_exp') && running[0] && queues[0].length > 0) {
       const runTask = running[0];
       const runMetric = cpuAlgo === 'srtf' ? runTask.remaining : runTask.priority;
       let bestKey = null;
@@ -210,29 +231,37 @@ export function simulateWithResources({ tasks, resourceNames, cpuAlgo, resourceA
     }
 
     for (let res = 0; res <= numResources; res++) {
-      if (!running[res]) {
-        const next = pickFromQueue(res);
-        if (next) {
-          running[res] = next;
-          startSeg(res, next, t);
-          if (res === 0 && usesQuantum) {
-            if (isVrr && next.resto > 0) {
-              next.quantumLeft = next.resto;
-              vrrLog.dispatch.push({ t, id: next.id, from: 'aux', slice: next.resto });
-            } else {
-              next.quantumLeft = quantum;
-              if (isVrr) vrrLog.dispatch.push({ t, id: next.id, from: 'ready', slice: quantum });
-            }
-            next.resto = 0;
+      if (running[res] || (res === 0 && switching)) continue;
+      const next = pickFromQueue(res);
+      if (!next) continue;
+      if (res === 0) {
+        if (usesQuantum) {
+          if (isVrr && next.resto > 0) {
+            next.quantumLeft = next.resto;
+            vrrLog.dispatch.push({ t, id: next.id, from: 'aux', slice: next.resto });
+          } else {
+            next.quantumLeft = quantum;
+            if (isVrr) vrrLog.dispatch.push({ t, id: next.id, from: 'ready', slice: quantum });
           }
+          next.resto = 0;
         }
+        if (contextSwitch > 0 && lastRan !== null && lastRan !== next.id) {
+          switching = { task: next, left: contextSwitch };
+          switches.push({ start: t, end: t + contextSwitch, from: lastRan, to: next.id });
+          continue;
+        }
+        lastRan = next.id;
+        next.priority = next.basePriority;
+        next.waitAge = 0;
       }
+      running[res] = next;
+      startSeg(res, next, t);
     }
     snapAllQueues(t); // después de despachar: refleja quién espera mientras corre lo recién asignado
 
     if (completed >= state.length) break;
 
-    const anyRunning = running.some((r) => r !== null);
+    const anyRunning = switching !== null || running.some((r) => r !== null);
     if (!anyRunning) {
       if (arrivalPtr < arrivalsSorted.length) {
         t = arrivalsSorted[arrivalPtr].arrival;
@@ -242,6 +271,19 @@ export function simulateWithResources({ tasks, resourceNames, cpuAlgo, resourceA
       }
       break;
     }
+
+    if (agingOn) {
+      const waiting = queues[0].slice();
+      if (switching) waiting.push(switching.task);
+      waiting.forEach((k) => {
+        k.waitAge++;
+        if (k.waitAge % aging === 0 && k.priority > 0) {
+          k.priority--;
+          agingLog.push({ t: t + 1, id: k.id, prio: k.priority, waited: k.waitAge });
+        }
+      });
+    }
+    if (switching) switching.left--;
 
     for (let res = 0; res <= numResources; res++) {
       const task = running[res];
@@ -268,7 +310,7 @@ export function simulateWithResources({ tasks, resourceNames, cpuAlgo, resourceA
     }
   });
 
-  return { segments: merged, finish, resources: ['CPU', ...resourceNames], readyLog, vrrLog: isVrr ? vrrLog : null, guard, completed, total: state.length };
+  return { segments: merged, finish, resources: ['CPU', ...resourceNames], readyLog, vrrLog: isVrr ? vrrLog : null, switches, agingLog, guard, completed, total: state.length };
 }
 
 /** Cola de listos de un recurso puntual (0=CPU, 1..N=recursos) en el instante `t`. */

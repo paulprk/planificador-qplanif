@@ -57,7 +57,7 @@ function sequenceOf(p, segments, labels) {
   return out.map((x) => `${x.name} ${x.dur}`).join(' → ');
 }
 
-export function renderGuide({ procs, segments, resourceLabels, algo, quantumText, resourceAlgo }) {
+export function renderGuide({ procs, segments, resourceLabels, algo, quantumText, resourceAlgo, hasSwitches }) {
   const host = document.getElementById('guideBody');
   if (!host) return;
   host.innerHTML = '';
@@ -96,6 +96,7 @@ export function renderGuide({ procs, segments, resourceLabels, algo, quantumText
     list.appendChild(swatchRow('wait-dev', 'Columnas', 'el dispositivo está ocupado y espera en su cola.'));
   }
   list.appendChild(swatchRow('wait-cpu', 'Línea de puntos', 'está listo pero la CPU la tiene otro: espera su turno.'));
+  if (hasSwitches) list.appendChild(swatchRow('switch', 'Rayado gris', 'cambio de contexto: el SO carga al próximo proceso y la CPU no ejecuta a nadie. Ese proceso cuenta como listo mientras tanto.'));
   list.appendChild(el('p', null, '▲ marca cuándo llega el proceso y ▼ cuándo termina. La línea vertical es el instante actual: al pasar el mouse por una barra ves de cuándo a cuándo dura.'));
   read.appendChild(list);
   host.appendChild(read);

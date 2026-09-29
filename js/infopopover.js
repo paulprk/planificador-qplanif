@@ -50,6 +50,11 @@ const CONTENT = {
     body: 'Porcentaje del tiempo total de la simulación en que ese dispositivo estuvo atendiendo a algún proceso.',
     formula: 'Uso = tiempo ocupado / tiempo total'
   },
+  ctx: {
+    title: 'Cambios de contexto',
+    body: 'Cuántas veces el SO tuvo que cambiar de un proceso a otro y cuántas unidades de tiempo consumió en total. Durante un cambio la CPU no ejecuta a ningún proceso, así que ese tiempo no cuenta como uso de la CPU y el proceso que se está cargando sigue esperando como "listo".',
+    formula: ''
+  },
   tpr: {
     title: 'TPR — Tiempo Promedio de Retorno',
     body: 'El promedio del TR de todos los procesos del lote. Sirve para comparar qué tan rápido responde el algoritmo en general.',

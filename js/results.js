@@ -40,7 +40,7 @@ function renderHead(ioMode) {
  * @param metrics      resultado de computeMetrics
  * @param resourceLabels null en modo simple; en modo E/S, ['CPU', 'R1', ...]
  */
-export function renderResults(procs, finish, metrics, resourceLabels) {
+export function renderResults(procs, finish, metrics, resourceLabels, switches = []) {
   const ioMode = !!resourceLabels;
   const body = document.getElementById('resultsBody');
   const statsGrid = document.getElementById('statsGrid');
@@ -73,6 +73,10 @@ export function renderResults(procs, finish, metrics, resourceLabels) {
     );
   }
   tiles.push(['Uso de CPU', 'ucpu', pct(metrics.utilization[0])]);
+  if (switches.length) {
+    const total = switches.reduce((a, sw) => a + (sw.end - sw.start), 0);
+    tiles.push(['Cambios de contexto', 'ctx', `${switches.length} (${total} u.)`]);
+  }
   if (ioMode) {
     resourceLabels.slice(1).forEach((name, i) => {
       tiles.push([`Uso de ${name}`, 'udev', pct(metrics.utilization[i + 1])]);

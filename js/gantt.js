@@ -47,6 +47,7 @@ let lastSegments = [];
 let lastShowPriority = false;
 let lastQuantumText = null;
 let lastFinish = {};
+let lastSwitches = [];
 let markerEls = [];
 let lastResourceLabels = null; // null = modo simple (lanes = procesos); array = modo E/S (lanes = recursos)
 
@@ -139,6 +140,19 @@ function makeSeg(procs, s, container, resourceLabels) {
   segEls.push({ el: div, seg: s });
 }
 
+function makeSwitchSeg(procs, sw, container) {
+  const nameOf = (id) => (procs.find((p) => p.id === id) || { name: id }).name;
+  const div = document.createElement('div');
+  div.className = 'seg seg-switch';
+  div.style.left = `${sw.start * gUnitPx}px`;
+  div.style.width = '0px';
+  div.dataset.label = 'SO';
+  const n = sw.end - sw.start;
+  div.title = `Cambio de contexto ${nameOf(sw.from)} → ${nameOf(sw.to)}: t=${sw.start} a t=${sw.end} (${n} ${n === 1 ? 'unidad' : 'unidades'}). ${nameOf(sw.to)} sigue en la cola de listos hasta que termine.`;
+  container.appendChild(div);
+  segEls.push({ el: div, seg: { start: sw.start, end: sw.end } });
+}
+
 function buildLegend(procs, showPriority, quantumText, isIo) {
   legendEl.innerHTML = '';
   procs.forEach((p, i) => {
@@ -172,7 +186,8 @@ function buildLegend(procs, showPriority, quantumText, isIo) {
   const states = [
     ['cpu', 'usando la CPU'],
     ...(isIo ? [['io', 'usando un dispositivo de E/S'], ['wait-dev', 'esperando que se libere el dispositivo']] : []),
-    ['wait-cpu', 'listo: esperando la CPU']
+    ['wait-cpu', 'listo: esperando la CPU'],
+    ...(lastSwitches.length ? [['switch', 'cambio de contexto (el SO carga al próximo)']] : [])
   ];
   states.forEach(([kind, text]) => {
     const item = document.createElement('div');
@@ -203,6 +218,7 @@ function buildSingleTrack(procs, segments, maxEnd, unitPx, resourceLabels) {
   ganttAxis.style.width = `${totalWidth}px`;
 
   segments.forEach((s) => makeSeg(procs, s, ganttTrack, resourceLabels));
+  lastSwitches.forEach((sw) => makeSwitchSeg(procs, sw, ganttTrack));
 
   playheadEl = document.createElement('div');
   playheadEl.className = 'playhead';
@@ -289,6 +305,7 @@ function buildLanes(procs, segments, maxEnd, unitPx, resourceLabels) {
     resourceLabels.forEach((name, i) => {
       const track = addLane(name, null);
       segments.filter((s) => s.res === i).forEach((s) => makeSeg(procs, s, track));
+      if (i === 0) lastSwitches.forEach((sw) => makeSwitchSeg(procs, sw, track));
     });
     const gapLabel = document.createElement('div');
     gapLabel.className = 'lane-gap';
@@ -296,6 +313,11 @@ function buildLanes(procs, segments, maxEnd, unitPx, resourceLabels) {
     const gapTrack = document.createElement('div');
     gapTrack.className = 'lane-gap';
     lanesBody.appendChild(gapTrack);
+  }
+
+  if (!resourceLabels && lastSwitches.length) {
+    const track = addLane('Cambio de contexto', null);
+    lastSwitches.forEach((sw) => makeSwitchSeg(procs, sw, track));
   }
 
   procs.forEach((p, i) => {
@@ -372,8 +394,9 @@ function updateViewAvailability(resourceLabels) {
 }
 
 /** Pinta un nuevo resultado de simulación y arranca la reproducción desde el instante 0. */
-export function renderSimulation({ procs, segments, finish, labelText, showPriority, quantumText, algo, readyLog, vrrLog, resourceLabels, resourceAlgo }) {
+export function renderSimulation({ procs, segments, finish, labelText, showPriority, quantumText, algo, readyLog, vrrLog, resourceLabels, resourceAlgo, switches, agingLog }) {
   pausePlayback();
+  lastSwitches = switches || [];
   lastProcs = procs;
   lastSegments = segments;
   lastShowPriority = showPriority;
@@ -382,13 +405,15 @@ export function renderSimulation({ procs, segments, finish, labelText, showPrior
   lastResourceLabels = resourceLabels || null;
   updateViewAvailability(lastResourceLabels);
 
-  renderGuide({ procs, segments, resourceLabels: resourceLabels || null, algo, quantumText, resourceAlgo });
+  renderGuide({ procs, segments, resourceLabels: resourceLabels || null, algo, quantumText, resourceAlgo, hasSwitches: lastSwitches.length > 0 });
   setReadyQueueData({ algo, procs, segments, finish, readyLog, ioMode: Boolean(resourceLabels), resourceLabels });
   setNarrationData({
     procs, segments, finish, algo,
     quantum: quantumText ? parseInt(quantumText, 10) : null,
     resourceAlgo: resourceLabels ? resourceAlgo : null,
     vrrLog: vrrLog || null,
+    switches: lastSwitches,
+    agingLog: agingLog || [],
     resourceLabels: resourceLabels || null
   }, (t) => { pausePlayback(); setInstant(t); });
   algoLabelEl.textContent = labelText;

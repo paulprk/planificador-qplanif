@@ -25,6 +25,9 @@ import { PALETTE } from './colors.js';
 const algoSel = document.getElementById('algo');
 const quantumField = document.getElementById('quantumField');
 const quantumInput = document.getElementById('quantum');
+const agingField = document.getElementById('agingField');
+const ctxInput = document.getElementById('ctxCost');
+const agingInput = document.getElementById('aging');
 const resourceAlgoField = document.getElementById('resourceAlgoField');
 const resourceAlgoSel = document.getElementById('resourceAlgo');
 const errMsg = document.getElementById('errMsg');
@@ -60,6 +63,7 @@ function updateFieldVisibility() {
   quantumField.classList.toggle('show', needsQuantum);
   setPriorityColumnVisible(PRIORITY_ALGOS.includes(algoSel.value));
   resourceAlgoField.classList.toggle('show', mode === 'io');
+  agingField.classList.toggle('show', algoSel.value === 'pri' || algoSel.value === 'pri_exp');
 }
 algoSel.addEventListener('change', updateFieldVisibility);
 
@@ -408,6 +412,12 @@ document.getElementById('loadCode').addEventListener('click', () => {
 });
 
 // --- Simulación ---
+function readCpuOptions() {
+  const contextSwitch = Math.max(0, parseInt(ctxInput.value, 10) || 0);
+  const aging = Math.max(0, parseInt(agingInput.value, 10) || 0);
+  return { contextSwitch, aging };
+}
+
 function runSimulation() {
   errMsg.classList.remove('show');
 
@@ -430,7 +440,8 @@ function runSimulation() {
 
   const algo = algoSel.value;
   const quantum = parseInt(quantumInput.value, 10);
-  const { ok, result, error } = runAlgorithm(algo, procs, quantum);
+  const cpuOpts = readCpuOptions();
+  const { ok, result, error } = runAlgorithm(algo, procs, quantum, cpuOpts);
   if (!ok) {
     errMsg.textContent = error;
     errMsg.classList.add('show');
@@ -441,7 +452,7 @@ function runSimulation() {
   const labelText = ALGO_NAMES[algo] + (needsQuantum ? ` · quantum = ${quantumInput.value}` : '');
 
   const metrics = computeMetrics({ procs, segments: result.segments, finish: result.finish });
-  renderResults(procs, result.finish, metrics, null);
+  renderResults(procs, result.finish, metrics, null, result.switches);
   renderSimulation({
     procs,
     segments: result.segments,
@@ -450,14 +461,16 @@ function runSimulation() {
     showPriority: PRIORITY_ALGOS.includes(algo),
     quantumText: needsQuantum ? quantumInput.value : null,
     algo,
-    readyLog: result.readyLog
+    readyLog: result.readyLog,
+    switches: result.switches,
+    agingLog: result.agingLog
   });
   showComparison({
     ioMode: false,
     numResources: 0,
     current: { algo, quantum: needsQuantum ? quantum : null },
     runOne: (a, q) => {
-      const r = runAlgorithm(a, procs, q).result;
+      const r = runAlgorithm(a, procs, q, cpuOpts).result;
       return { procs, segments: r.segments, finish: r.finish };
     }
   });
@@ -477,9 +490,10 @@ function runIoSimulation() {
     id: `io${i}`, order: i, name: t.name, arrival: t.arrival, priority: t.priority, bursts: t.bursts
   }));
 
+  const cpuOpts = readCpuOptions();
   const resourceAlgo = resourceAlgoSel.value;
   const result = simulateWithResources({
-    tasks: simTasks, resourceNames: ioResourceNames, cpuAlgo: algo, resourceAlgo, quantum
+    tasks: simTasks, resourceNames: ioResourceNames, cpuAlgo: algo, resourceAlgo, quantum, ...cpuOpts
   });
 
   const procsForResults = simTasks.map((t) => ({
@@ -497,7 +511,7 @@ function runIoSimulation() {
   const metrics = computeMetrics({
     procs: procsForResults, segments: result.segments, finish: result.finish, numResources: ioResourceNames.length
   });
-  renderResults(procsForResults, result.finish, metrics, result.resources);
+  renderResults(procsForResults, result.finish, metrics, result.resources, result.switches);
   renderSimulation({
     procs: procsForResults,
     segments: result.segments,
@@ -508,6 +522,8 @@ function runIoSimulation() {
     algo,
     readyLog: result.readyLog,
     vrrLog: result.vrrLog,
+    switches: result.switches,
+    agingLog: result.agingLog,
     resourceLabels: result.resources,
     resourceAlgo
   });
@@ -517,7 +533,7 @@ function runIoSimulation() {
     current: { algo, quantum: needsQuantum ? quantum : null },
     runOne: (a, q) => {
       const r = simulateWithResources({
-        tasks: simTasks, resourceNames: ioResourceNames, cpuAlgo: a, resourceAlgo, quantum: q || 1
+        tasks: simTasks, resourceNames: ioResourceNames, cpuAlgo: a, resourceAlgo, quantum: q || 1, ...cpuOpts
       });
       return { procs: procsForResults, segments: r.segments, finish: r.finish };
     }

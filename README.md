@@ -19,6 +19,8 @@ Simulador web de algoritmos de planificación de CPU, inspirado en [qplanif](htt
   - **Vista única**: la línea de tiempo clásica de un único procesador (la que se dibuja a mano en los TPs).
   - **Vista por proceso**: una fila por proceso, mostrando los huecos de espera — igual al estilo de qplanif.
 - Reproducción animada paso a paso ("Ejecución paso a paso" de qplanif): reproducir, pausar, avanzar/retroceder de a un instante, o arrastrar el slider. Se puede pausar/reproducir con la barra espaciadora.
+- Costo de cambio de contexto opcional: el SO tarda N unidades en cargar a un proceso distinto del último que usó la CPU (se ve como bloque rayado en el Gantt, no cuenta como uso de CPU y el proceso elegido sigue esperando).
+- Envejecimiento (aging) opcional en prioridades: cada N unidades en la cola de listos sube la prioridad del proceso, que vuelve a la base cuando toma la CPU.
 - Calcula automáticamente TR, TE por proceso y TPR/TPE del lote.
 - Carga de procesos por código, con el mismo formato `.def` de qplanif:
   ```

@@ -58,7 +58,7 @@ function annotate(procs, segments) {
  * @param resourceAlgo algoritmo de las colas de E/S ('fcfs' | 'sjf' | 'pri') o null en modo simple
  * @param resourceLabels null en modo simple; ['CPU', 'R1', ...] en modo E/S
  */
-export function buildNarration({ procs, segments: rawSegments, finish, algo, quantum, resourceAlgo, resourceLabels, vrrLog }) {
+export function buildNarration({ procs, segments: rawSegments, finish, algo, quantum, resourceAlgo, resourceLabels, vrrLog, switches = [], agingLog = [] }) {
   const segments = mergeAdjacent(rawSegments);
   const byId = {};
   procs.forEach((p) => { byId[p.id] = p; });
@@ -91,38 +91,55 @@ export function buildNarration({ procs, segments: rawSegments, finish, algo, qua
     return out;
   };
 
-  const cpuMetric = (c) => {
+  // Prioridad efectiva en el instante dt: la original, mejorada por el envejecimiento mientras espera en la cola de listos.
+  const effPrio = (id, dt) => {
+    const base = byId[id].priority;
+    const iv = ivsOf[id].find((x) => x.kind === 'wait-cpu' && x.start <= dt && dt <= x.end);
+    if (!iv) return base;
+    let prio = base;
+    agingLog.forEach((a) => { if (a.id === id && a.t >= iv.start && a.t <= dt) prio = a.prio; });
+    return prio;
+  };
+
+  const cpuMetric = (c, dt) => {
     if (algo === 'fcfs') return c.entry;
     if (algo === 'sjf' || algo === 'srtf') return c.seg.rem;
-    if (algo === 'pri' || algo === 'pri_exp' || algo === 'pri_rr') return byId[c.id].priority;
+    if (algo === 'pri' || algo === 'pri_exp') return effPrio(c.id, dt);
+    if (algo === 'pri_rr') return byId[c.id].priority;
     return null;
   };
+
+  // Con costo de cambio de contexto, la CPU se decide al empezar el cambio, no cuando el proceso ya está cargado.
+  const switchInto = (seg) => switches.find((w) => w.to === seg.id && w.end === seg.start) || null;
+  const decisionTime = (seg) => { const w = switchInto(seg); return w ? w.start : seg.start; };
+  const switchAt = (t) => switches.find((w) => w.start <= t && t < w.end) || null;
 
   const vrrDispatch = (t, id) => (vrrLog ? vrrLog.dispatch.find((d) => d.t === t && d.id === id) : null);
   const vrrAux = (t, id) => (vrrLog ? vrrLog.aux.find((d) => d.t === t && d.id === id) : null);
   const unidades = (n) => `${n} ${n === 1 ? 'unidad' : 'unidades'}`;
 
   function whyCpu(t, seg) {
-    const vd = algo === 'vrr' ? vrrDispatch(t, seg.id) : null;
+    const dt = decisionTime(seg);
+    const vd = algo === 'vrr' ? vrrDispatch(dt, seg.id) : null;
     if (vd && vd.from === 'aux') return `viene de la cola auxiliar: volvió de E/S con ${unidades(vd.slice)} de su quantum sin usar, y esa cola se atiende antes que la de listos. Usa la CPU solo esas ${unidades(vd.slice)}.`;
     const mine = { id: seg.id, seg, entry: (ivsOf[seg.id].find((iv) => iv.kind === 'wait-cpu' && iv.end === t) || { start: t }).start };
-    const others = waiting(t, 0).filter((c) => c.id !== seg.id);
+    const others = waiting(dt, 0).filter((c) => c.id !== seg.id);
     if (others.length === 0) return 'es el único proceso listo.';
     if (algo === 'vrr') return `es el primero de la cola de listos (la auxiliar está vacía). Recibe un quantum completo de ${quantum}.`;
     if (algo === 'rr') return 'es el primero de la cola de listos (Round Robin atiende en el orden en que se formó la cola).';
-    const mv = cpuMetric(mine);
-    const tie = others.some((c) => cpuMetric(c) === mv);
+    const mv = cpuMetric(mine, dt);
+    const tie = others.some((c) => cpuMetric(c, dt) === mv);
     const showOthers = others.slice(0, 3);
     const more = others.length > 3 ? ', …' : '';
     const cmp = algo === 'fcfs'
-      ? list(showOthers.map((c) => `${name(c.id)} entró en t=${cpuMetric(c)}`)) + more
-      : list(showOthers.map((c) => `${name(c.id)}: ${cpuMetric(c)}`)) + more;
+      ? list(showOthers.map((c) => `${name(c.id)} entró en t=${cpuMetric(c, dt)}`)) + more
+      : list(showOthers.map((c) => `${name(c.id)}: ${cpuMetric(c, dt)}`)) + more;
     let base;
     if (algo === 'fcfs') base = `entró antes que el resto a la cola de listos (entró en t=${mv}; ${cmp})`;
     else if (algo === 'sjf') base = `tiene la ráfaga de CPU más corta entre los listos (la suya es ${mv}; ${cmp})`;
     else if (algo === 'srtf') base = `es al que menos tiempo le falta entre los listos (le faltan ${mv}; ${cmp})`;
     else base = `tiene la mayor prioridad entre los listos (la suya es ${mv}; ${cmp}; el número más bajo es el más urgente)`;
-    if (tie) base += algo === 'fcfs' ? '. Empatan en llegada, así que va primero el de menor orden en el lote' : '. Hay empate: gana el que entró antes a la cola';
+    if (tie) base += algo === 'fcfs' ? '. Empatan en el instante de entrada: va primero el que se encoló antes (en un mismo instante: los que vuelven de E/S, después las llegadas y al final el desalojado)' : '. Hay empate: gana el que se encoló antes';
     return `${base}.`;
   }
 
@@ -148,7 +165,14 @@ export function buildNarration({ procs, segments: rawSegments, finish, algo, qua
   const retornoWhy = (p) => `Retorno = fin − llegada = ${finish[p.id]} − ${p.arrival} = ${finish[p.id] - p.arrival}.`;
 
   procs.forEach((p) => {
-    push(p.arrival, 'arrive', `${p.name} llega y entra a la cola de listos.`, p.id);
+    const inside = switches.find((w) => w.start < p.arrival && p.arrival < w.end);
+    push(p.arrival, 'arrive', `${p.name} llega y entra a la cola de listos.`, p.id,
+      inside ? `Hay un cambio de contexto en curso: ${name(inside.to)} ya fue elegido y esa decisión no se revisa, aunque llegue alguien mejor.` : '');
+  });
+
+  agingLog.forEach((a) => {
+    push(a.t, 'aging', `${name(a.id)} mejora su prioridad a ${a.prio}.`, a.id,
+      `Lleva ${unidades(a.waited)} esperando en la cola de listos (envejecimiento: cuanto más espera, más urgente se vuelve). Cuando tome la CPU vuelve a su prioridad original, ${byId[a.id].priority}.`);
   });
 
   procs.forEach((p) => {
@@ -165,18 +189,19 @@ export function buildNarration({ procs, segments: rawSegments, finish, algo, qua
           push(s.end, 'burst-end', `${p.name} termina su ráfaga de CPU y pide ${resName(next.res)}.`, p.id, 'Mientras usa el dispositivo no necesita la CPU: queda libre para otro proceso.');
           if (next.start > s.end) push(s.end, 'blocked', `${p.name} espera en la cola de ${resName(next.res)}.`, p.id, `${resName(next.res)} está ocupado y atiende a un proceso por vez.`);
         } else {
-          const x = startsAt(s.end, 0);
+          const sw0 = switches.find((w) => w.start === s.end);
+          const x = sw0 ? (segsOf[sw0.to].find((a) => a.start === sw0.end && a.res === 0) || null) : startsAt(s.end, 0);
           let reason = { main: 'deja la CPU y vuelve a la cola de listos.', why: '' };
           if (x && x.id !== p.id) {
             const xp = byId[x.id];
             if (algo === 'vrr') {
-              const vd = vrrDispatch(s.start, p.id);
+              const vd = vrrDispatch(decisionTime(s), p.id);
               reason = vd && vd.from === 'aux'
                 ? { main: 'agota su quantum restante y vuelve a la cola de listos.', why: `Usó las ${unidades(vd.slice)} que le tocaban desde la cola auxiliar; ahora le toca al siguiente.` }
                 : { main: 'agota su quantum y vuelve al final de la cola de listos.', why: `Usó ${quantum} unidades seguidas de CPU; ahora le toca al siguiente.` };
             } else if (algo === 'rr') reason = { main: 'agota su quantum y vuelve al final de la cola de listos.', why: `Usó ${quantum} unidades seguidas de CPU; ahora le toca al siguiente.` };
             else if (algo === 'srtf') reason = { main: `es expropiado por ${xp.name} y vuelve a la cola de listos.`, why: `${xp.name} necesita menos tiempo de CPU que él (${x.rem} < ${next.rem}), así que le quita la CPU.` };
-            else if (algo === 'pri_exp') reason = { main: `es expropiado por ${xp.name} y vuelve a la cola de listos.`, why: `${xp.name} tiene mayor prioridad (${xp.priority} < ${p.priority}; el número más bajo es el más urgente).` };
+            else if (algo === 'pri_exp') reason = { main: `es expropiado por ${xp.name} y vuelve a la cola de listos.`, why: `${xp.name} tiene mayor prioridad (${effPrio(x.id, s.end)} < ${p.priority}; el número más bajo es el más urgente).` };
             else if (algo === 'pri_rr') {
               reason = xp.priority < p.priority
                 ? { main: `es expropiado por ${xp.name} y vuelve a la cola de listos.`, why: `${xp.name} tiene mayor prioridad (${xp.priority} < ${p.priority}; el número más bajo es el más urgente).` }
@@ -201,7 +226,16 @@ export function buildNarration({ procs, segments: rawSegments, finish, algo, qua
   procs.forEach((p) => {
     segsOf[p.id].forEach((s) => {
       if (s.res === 0) {
-        push(s.start, 'cpu', `${p.name} pasa a la CPU.`, p.id, cap(whyCpu(s.start, s)));
+        const sw = switchInto(s);
+        if (sw) {
+          const n = sw.end - sw.start;
+          const extra = algo === 'srtf' || algo === 'pri_exp' ? ' Un proceso recién cargado ejecuta al menos una unidad antes de poder ser desalojado.' : '';
+          push(sw.start, 'switch', `${p.name} es elegido para la CPU: empieza el cambio de contexto (${unidades(n)}).`, p.id,
+            `${cap(whyCpu(s.start, s))} Durante el cambio la CPU no ejecuta a nadie y ${p.name} sigue contando como listo (esas unidades son espera). La elección ya no se revisa.`);
+          push(s.start, 'cpu', `${p.name} pasa a la CPU.`, p.id, `Terminó el cambio de contexto (t=${sw.start} a t=${sw.end}): recién ahora empieza a ejecutar.${extra}`);
+        } else {
+          push(s.start, 'cpu', `${p.name} pasa a la CPU.`, p.id, cap(whyCpu(s.start, s)));
+        }
       } else {
         push(s.start, 'io', `${p.name} empieza a usar ${resName(s.res)}.`, p.id, cap(whyDevice(s.start, s)));
       }
@@ -209,7 +243,7 @@ export function buildNarration({ procs, segments: rawSegments, finish, algo, qua
   });
 
   // Orden dentro de cada instante: llegadas, salidas, entradas.
-  const ORDER = { arrive: 0, end: 1, 'burst-end': 1, 'io-end': 1, preempt: 1, blocked: 2, cpu: 3, io: 3 };
+  const ORDER = { arrive: 0, end: 1, 'burst-end': 1, 'io-end': 1, preempt: 1, blocked: 2, aging: 2, switch: 3, cpu: 3, io: 3 };
   Object.keys(events).forEach((t) => {
     events[t] = events[t].map((e, i) => ({ e, i })).sort((a, b) => ORDER[a.e.kind] - ORDER[b.e.kind] || a.i - b.i).map((x) => x.e);
   });
@@ -227,7 +261,7 @@ export function buildNarration({ procs, segments: rawSegments, finish, algo, qua
     const readyIds = waiting(t, 0).map((c) => c.id);
     const devWaiting = [];
     for (let r = 1; r < numRes; r++) devWaiting.push(waiting(t, r).map((c) => c.id));
-    return { running, readyIds, devWaiting };
+    return { running, readyIds, devWaiting, switching: switchAt(t) };
   }
 
   function locationsAt(t) {
@@ -384,6 +418,14 @@ function renderMap(t) {
   };
   const at = (key) => data.procs.filter((p) => now[p.id] === key).map((p) => mk(p.id));
 
+  const cpuChips = at('cpu');
+  const sw = data.stateAt(t).switching;
+  if (sw && cpuChips.length === 0) {
+    const e = document.createElement('span');
+    e.className = 'nar-empty';
+    e.textContent = `cambio de contexto → ${data.procs.find((p) => p.id === sw.to).name}`;
+    cpuChips.push(e);
+  }
   const flow = document.createElement('div');
   flow.className = 'map-flow';
   flow.append(
@@ -391,7 +433,7 @@ function renderMap(t) {
     arrow('→'),
     mapBox('Cola de listos', at('ready')),
     arrow('→'),
-    mapBox('CPU', at('cpu'), 'map-cpu'),
+    mapBox('CPU', cpuChips, 'map-cpu'),
     arrow('→'),
     mapBox('Terminaron', at('done'), 'map-muted')
   );
@@ -478,6 +520,10 @@ export function renderNarrationAt(t) {
     const st = data.stateAt(t);
     const labels = data.resourceLabels || ['CPU'];
     st.running.forEach((r, i) => {
+      if (i === 0 && !r && st.switching) {
+        box.appendChild(stateRow(`En ${labels[0]}`, [document.createTextNode('cambio de contexto → '), chip(data.procs, st.switching.to, ' (se está cargando)')]));
+        return;
+      }
       box.appendChild(stateRow(`En ${labels[i]}`, r ? [chip(data.procs, r.id, r.left != null ? ` (le quedan ${r.left})` : '')] : []));
     });
     box.appendChild(stateRow('Esperan CPU', st.readyIds.map((id) => chip(data.procs, id))));

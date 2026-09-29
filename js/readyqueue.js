@@ -5,7 +5,6 @@
  * E/S hay una fila por cada recurso (CPU + cada dispositivo declarado),
  * porque cada uno tiene su propia cola independiente.
  */
-import { readyQueueAt } from './algorithms.js';
 import { ioReadyQueueAt, ioAuxCountAt } from './iosim.js';
 import { colorFor } from './colors.js';
 
@@ -99,6 +98,6 @@ export function renderReadyQueueAt(t) {
 
   const items = document.getElementById('readyQueueItemsSimple');
   if (!items) return;
-  const queue = readyQueueAt(lastAlgo, lastProcs, lastSegments, lastFinish, lastReadyLog, t);
-  renderChips(items, queue);
+  const ids = ioReadyQueueAt(lastReadyLog, 0, t);
+  renderChips(items, ids.map((id) => lastProcs.find((p) => p.id === id)).filter(Boolean));
 }
