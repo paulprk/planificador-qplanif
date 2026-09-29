@@ -120,16 +120,6 @@ export function simulateWithResources({ tasks, resourceNames, cpuAlgo, resourceA
     return q.splice(bestIdx, 1)[0];
   }
 
-  // Un proceso que termina su E/S justo ahora y entra a la auxiliar ya cuenta al decidir si el quantum expira.
-  function auxArrivingNow() {
-    if (!isVrr) return false;
-    for (let r = 1; r <= numResources; r++) {
-      const k = running[r];
-      if (k && k.remaining === 0 && k.burstIdx < k.bursts.length - 1 && k.bursts[k.burstIdx + 1].res === 0 && k.resto > 0) return true;
-    }
-    return false;
-  }
-
   function closeSeg(res, t) {
     if (openSeg[res]) {
       segments.push({ id: openSeg[res].id, res, start: openSeg[res].start, end: t });
@@ -147,6 +137,52 @@ export function simulateWithResources({ tasks, resourceNames, cpuAlgo, resourceA
       const task = arrivalsSorted[arrivalPtr];
       enqueue(task.bursts[0].res, task, time);
       arrivalPtr++;
+    }
+  }
+
+  function settleResource(res) {
+    const task = running[res];
+    if (!task) return;
+
+    if (task.remaining === 0) {
+      closeSeg(res, t);
+      if (res === 0 && isVrr) task.resto = task.quantumLeft > 0 ? task.quantumLeft : 0;
+      if (task.burstIdx === task.bursts.length - 1) {
+        finish[task.id] = t;
+        completed++;
+      } else {
+        task.burstIdx++;
+        task.remaining = task.bursts[task.burstIdx].dur;
+        enqueue(task.bursts[task.burstIdx].res, task, t);
+      }
+      running[res] = null;
+      return;
+    }
+
+    if (res === 0 && cpuAlgo === 'pri_rr') {
+      const bp = bestPriorityKey();
+      if (bp !== null && bp < task.priority) {
+        // Alguien de mejor prioridad llegó: expulsión inmediata, sin esperar el quantum.
+        closeSeg(0, t);
+        enqueue(0, task, t);
+        running[0] = null;
+      } else if (task.quantumLeft === 0) {
+        if (bp !== null && bp === task.priority) {
+          closeSeg(0, t);
+          enqueue(0, task, t);
+          running[0] = null;
+        } else {
+          task.quantumLeft = quantum;
+        }
+      }
+    } else if (res === 0 && (cpuAlgo === 'rr' || isVrr) && task.quantumLeft === 0) {
+      if (queues[0].length > 0 || aux.length > 0) {
+        closeSeg(0, t);
+        enqueue(0, task, t);
+        running[0] = null;
+      } else {
+        task.quantumLeft = quantum;
+      }
     }
   }
 
@@ -214,53 +250,10 @@ export function simulateWithResources({ tasks, resourceNames, cpuAlgo, resourceA
       if (res === 0 && usesQuantum) task.quantumLeft--;
     }
     t++;
-    processArrivalsAt(t); // los que llegan justo ahora ya cuentan para las decisiones de este instante
-
-    for (let res = 0; res <= numResources; res++) {
-      const task = running[res];
-      if (!task) continue;
-
-      if (task.remaining === 0) {
-        closeSeg(res, t);
-        if (res === 0 && isVrr) task.resto = task.quantumLeft > 0 ? task.quantumLeft : 0;
-        if (task.burstIdx === task.bursts.length - 1) {
-          finish[task.id] = t;
-          completed++;
-        } else {
-          task.burstIdx++;
-          task.remaining = task.bursts[task.burstIdx].dur;
-          enqueue(task.bursts[task.burstIdx].res, task, t);
-        }
-        running[res] = null;
-        continue;
-      }
-
-      if (res === 0 && cpuAlgo === 'pri_rr') {
-        const bp = bestPriorityKey();
-        if (bp !== null && bp < task.priority) {
-          // Alguien de mejor prioridad llegó: expulsión inmediata, sin esperar el quantum.
-          closeSeg(0, t);
-          enqueue(0, task, t);
-          running[0] = null;
-        } else if (task.quantumLeft === 0) {
-          if (bp !== null && bp === task.priority) {
-            closeSeg(0, t);
-            enqueue(0, task, t);
-            running[0] = null;
-          } else {
-            task.quantumLeft = quantum;
-          }
-        }
-      } else if (res === 0 && (cpuAlgo === 'rr' || isVrr) && task.quantumLeft === 0) {
-        if (queues[0].length > 0 || aux.length > 0 || auxArrivingNow()) {
-          closeSeg(0, t);
-          enqueue(0, task, t);
-          running[0] = null;
-        } else {
-          task.quantumLeft = quantum;
-        }
-      }
-    }
+    // Dentro de un mismo instante (igual que qplanif): primero vuelven los que terminan E/S, después las llegadas nuevas y al final el desalojado.
+    for (let res = 1; res <= numResources; res++) settleResource(res);
+    processArrivalsAt(t);
+    settleResource(0);
     snapAllQueues(t);
   }
 
