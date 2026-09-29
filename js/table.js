@@ -71,7 +71,7 @@ export function addRow(data) {
 
 export function addDefaultRow() {
   const n = procBody.querySelectorAll('tr').length + 1;
-  addRow({ name: `P${n}`, arrival: 0, burst: 1, priority: n });
+  addRow({ name: `P${n}`, arrival: 0, burst: 1, priority: 0 });
 }
 
 function recolor() {

@@ -46,7 +46,7 @@ export function parseDefText(text) {
     const inicioM = block.match(/INICIO\s*=\s*(-?\d+)/i);
     const prioM = block.match(/PRIORIDAD\s*=\s*(-?\d+)/i);
     const arrival = inicioM ? parseInt(inicioM[1], 10) : 0;
-    const priority = prioM ? parseInt(prioM[1], 10) : i + 1;
+    const priority = prioM ? parseInt(prioM[1], 10) : 0;
 
     const bursts = [];
     const re = /\[\s*([^,\]]+)\s*,\s*(\d+)\s*\]/g;
@@ -62,26 +62,26 @@ export function parseDefText(text) {
   return { tasks, resourceNames };
 }
 
-/** PRIORIDAD solo se escribe si difiere de la que el parser asume por posición (i + 1). */
-function prioText(priority, i) {
-  return priority === i + 1 ? '' : ` PRIORIDAD=${priority}`;
+/** PRIORIDAD solo se escribe si no es la de por defecto (0). */
+function prioText(priority) {
+  return priority === 0 ? '' : ` PRIORIDAD=${priority}`;
 }
 
 /** El inverso de parseDefText para lotes simples (una sola ráfaga de CPU por proceso). */
 export function defTextFromProcesses(procs) {
   return procs
-    .map((p, i) => `TAREA "${p.name}"\nINICIO=${p.arrival}${prioText(p.priority, i)} [CPU,${p.burst}]`)
+    .map((p) => `TAREA "${p.name}"\nINICIO=${p.arrival}${prioText(p.priority)} [CPU,${p.burst}]`)
     .join('\n\n');
 }
 
 /** El inverso de parseDefText para lotes de E/S (tareas con ráfagas alternadas CPU/recurso). */
 export function defTextFromIoTasks(tasks, resourceNames) {
   const resLines = resourceNames.map((name) => `RECURSO "${name}"`);
-  const taskLines = tasks.map((t, i) => {
+  const taskLines = tasks.map((t) => {
     const brackets = t.bursts
       .map((b) => (b.res === 0 ? `[CPU,${b.dur}]` : `[${b.res},${b.dur}]`))
       .join(' ');
-    return `TAREA "${t.name}"\nINICIO=${t.arrival}${prioText(t.priority, i)} ${brackets}`;
+    return `TAREA "${t.name}"\nINICIO=${t.arrival}${prioText(t.priority)} ${brackets}`;
   });
   const resBlock = resLines.join('\n');
   return [resBlock, ...taskLines].filter(Boolean).join('\n\n');
