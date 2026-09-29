@@ -10,6 +10,7 @@ const ALGO_TEXT = {
   rr: 'Round Robin: cada proceso usa la CPU como máximo un quantum seguido. Si no terminó, vuelve al final de la cola de listos y pasa el siguiente.',
   pri: 'Prioridades: va el listo con la prioridad más urgente (el número más bajo). Nadie le quita la CPU a mitad de ráfaga.',
   pri_exp: 'Prioridades expulsivo: igual, pero si aparece un proceso más urgente que el que está en la CPU, se la quita.',
+  vrr: 'Round Robin virtual: es Round Robin, pero con una cola auxiliar. Si un proceso pide E/S antes de agotar su quantum, al volver espera en la auxiliar (que se atiende antes que la de listos) y usa solo lo que le sobraba. Así no pierde su turno por haber ido a E/S.',
   pri_rr: 'Prioridades + Round Robin: va el más urgente; entre procesos de la misma prioridad se turnan por quantums.'
 };
 

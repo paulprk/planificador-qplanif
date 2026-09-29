@@ -40,13 +40,18 @@ export function simulateWithResources({ tasks, resourceNames, cpuAlgo, resourceA
     burstIdx: 0,
     remaining: t.bursts[0].dur,
     queueEnterTime: t.arrival,
-    quantumLeft: 0
+    quantumLeft: 0,
+    resto: 0
   }));
 
   const queues = [];
   for (let i = 0; i <= numResources; i++) queues.push([]);
   const running = new Array(numResources + 1).fill(null);
   const priorityQueues = { 0: {} };
+  const isVrr = cpuAlgo === 'vrr';
+  const usesQuantum = cpuAlgo === 'rr' || cpuAlgo === 'pri_rr' || isVrr;
+  const aux = [];
+  const vrrLog = { aux: [], dispatch: [] };
 
   const segments = [];
   const finish = {};
@@ -64,11 +69,12 @@ export function simulateWithResources({ tasks, resourceNames, cpuAlgo, resourceA
       keys.forEach((k) => priorityQueues[0][k].forEach((task) => out.push(task.id)));
       return out;
     }
+    if (res === 0 && isVrr) return aux.concat(queues[0]).map((task) => task.id);
     return queues[res].map((task) => task.id);
   }
   function snapAllQueues(time) {
     for (let res = 0; res <= numResources; res++) {
-      readyLog.push({ t: time, res, queue: flatQueueFor(res) });
+      readyLog.push({ t: time, res, queue: flatQueueFor(res), auxCount: res === 0 ? aux.length : 0 });
     }
   }
 
@@ -83,7 +89,10 @@ export function simulateWithResources({ tasks, resourceNames, cpuAlgo, resourceA
   function enqueue(res, task, t) {
     task.queueEnterTime = t;
     task.queueSeq = enqueueSeq++;
-    if (res === 0 && cpuAlgo === 'pri_rr') {
+    if (res === 0 && isVrr && task.resto > 0) {
+      aux.push(task);
+      vrrLog.aux.push({ t, id: task.id, resto: task.resto });
+    } else if (res === 0 && cpuAlgo === 'pri_rr') {
       const p = task.priority;
       if (!priorityQueues[0][p]) priorityQueues[0][p] = [];
       priorityQueues[0][p].push(task);
@@ -93,6 +102,7 @@ export function simulateWithResources({ tasks, resourceNames, cpuAlgo, resourceA
   }
 
   function pickFromQueue(res) {
+    if (res === 0 && isVrr && aux.length > 0) return aux.shift();
     const policy = policyForResource(res);
     if (res === 0 && policy === 'pri_rr') {
       const bp = bestPriorityKey();
@@ -108,6 +118,16 @@ export function simulateWithResources({ tasks, resourceNames, cpuAlgo, resourceA
       if (compareKeys(k, bestKey) < 0) { bestKey = k; bestIdx = i; }
     }
     return q.splice(bestIdx, 1)[0];
+  }
+
+  // Un proceso que termina su E/S justo ahora y entra a la auxiliar ya cuenta al decidir si el quantum expira.
+  function auxArrivingNow() {
+    if (!isVrr) return false;
+    for (let r = 1; r <= numResources; r++) {
+      const k = running[r];
+      if (k && k.remaining === 0 && k.burstIdx < k.bursts.length - 1 && k.bursts[k.burstIdx + 1].res === 0 && k.resto > 0) return true;
+    }
+    return false;
   }
 
   function closeSeg(res, t) {
@@ -159,7 +179,16 @@ export function simulateWithResources({ tasks, resourceNames, cpuAlgo, resourceA
         if (next) {
           running[res] = next;
           startSeg(res, next, t);
-          if (res === 0 && (cpuAlgo === 'rr' || cpuAlgo === 'pri_rr')) next.quantumLeft = quantum;
+          if (res === 0 && usesQuantum) {
+            if (isVrr && next.resto > 0) {
+              next.quantumLeft = next.resto;
+              vrrLog.dispatch.push({ t, id: next.id, from: 'aux', slice: next.resto });
+            } else {
+              next.quantumLeft = quantum;
+              if (isVrr) vrrLog.dispatch.push({ t, id: next.id, from: 'ready', slice: quantum });
+            }
+            next.resto = 0;
+          }
         }
       }
     }
@@ -182,7 +211,7 @@ export function simulateWithResources({ tasks, resourceNames, cpuAlgo, resourceA
       const task = running[res];
       if (!task) continue;
       task.remaining--;
-      if (res === 0 && (cpuAlgo === 'rr' || cpuAlgo === 'pri_rr')) task.quantumLeft--;
+      if (res === 0 && usesQuantum) task.quantumLeft--;
     }
     t++;
     processArrivalsAt(t); // los que llegan justo ahora ya cuentan para las decisiones de este instante
@@ -193,6 +222,7 @@ export function simulateWithResources({ tasks, resourceNames, cpuAlgo, resourceA
 
       if (task.remaining === 0) {
         closeSeg(res, t);
+        if (res === 0 && isVrr) task.resto = task.quantumLeft > 0 ? task.quantumLeft : 0;
         if (task.burstIdx === task.bursts.length - 1) {
           finish[task.id] = t;
           completed++;
@@ -221,8 +251,8 @@ export function simulateWithResources({ tasks, resourceNames, cpuAlgo, resourceA
             task.quantumLeft = quantum;
           }
         }
-      } else if (res === 0 && cpuAlgo === 'rr' && task.quantumLeft === 0) {
-        if (queues[0].length > 0) {
+      } else if (res === 0 && (cpuAlgo === 'rr' || isVrr) && task.quantumLeft === 0) {
+        if (queues[0].length > 0 || aux.length > 0 || auxArrivingNow()) {
           closeSeg(0, t);
           enqueue(0, task, t);
           running[0] = null;
@@ -245,7 +275,7 @@ export function simulateWithResources({ tasks, resourceNames, cpuAlgo, resourceA
     }
   });
 
-  return { segments: merged, finish, resources: ['CPU', ...resourceNames], readyLog, guard, completed, total: state.length };
+  return { segments: merged, finish, resources: ['CPU', ...resourceNames], readyLog, vrrLog: isVrr ? vrrLog : null, guard, completed, total: state.length };
 }
 
 /** Cola de listos de un recurso puntual (0=CPU, 1..N=recursos) en el instante `t`. */
@@ -256,4 +286,14 @@ export function ioReadyQueueAt(readyLog, res, t) {
     if (snap.res === res) ids = snap.queue;
   }
   return ids;
+}
+
+/** Cuántos de los primeros de la cola de la CPU vienen de la cola auxiliar (VRR). */
+export function ioAuxCountAt(readyLog, t) {
+  let n = 0;
+  for (const snap of readyLog) {
+    if (snap.t > t) break;
+    if (snap.res === 0) n = snap.auxCount || 0;
+  }
+  return n;
 }

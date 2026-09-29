@@ -355,6 +355,7 @@ export const ALGO_NAMES = {
   sjf: 'SJF — Shortest Job First (no expulsivo)',
   srtf: 'SRTF — Shortest Remaining Time First (expulsivo)',
   rr: 'Round Robin',
+  vrr: 'Round Robin virtual (VRR)',
   pri: 'Prioridades (no expulsivo)',
   pri_exp: 'Prioridades (expulsivo)',
   pri_rr: 'Prioridades + Round Robin'

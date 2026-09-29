@@ -12,10 +12,11 @@ const SHORT_NAMES = {
   pri: 'Prioridades (no exp.)',
   pri_exp: 'Prioridades (exp.)',
   rr: 'Round Robin',
+  vrr: 'Round Robin virtual',
   pri_rr: 'Prioridades + RR'
 };
 
-const ORDER = ['fcfs', 'sjf', 'srtf', 'pri', 'pri_exp', 'rr', 'pri_rr'];
+const ORDER = ['fcfs', 'sjf', 'srtf', 'pri', 'pri_exp', 'rr', 'vrr', 'pri_rr'];
 
 /** "1, 2 4" -> [1, 2, 4] (enteros > 0, sin repetir, hasta 6). */
 export function parseQuantums(text) {
@@ -43,7 +44,8 @@ export function contextSwitches(segments) {
 export function buildRows({ quantums, runOne, numResources }) {
   const configs = [];
   ORDER.forEach((algo) => {
-    if (algo === 'rr' || algo === 'pri_rr') quantums.forEach((q) => configs.push({ algo, quantum: q }));
+    if (algo === 'vrr' && !numResources) return;
+    if (algo === 'rr' || algo === 'vrr' || algo === 'pri_rr') quantums.forEach((q) => configs.push({ algo, quantum: q }));
     else configs.push({ algo, quantum: null });
   });
   return configs.map((cfg) => {

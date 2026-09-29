@@ -49,8 +49,14 @@ function loadDefaultIo() {
   ioResourceNames = parsed.resourceNames;
 }
 
+const QUANTUM_ALGOS = ['rr', 'vrr', 'pri_rr'];
+
 function updateFieldVisibility() {
-  const needsQuantum = algoSel.value === 'rr' || algoSel.value === 'pri_rr';
+  const vrrOpt = algoSel.querySelector('option[value="vrr"]');
+  vrrOpt.hidden = mode !== 'io';
+  vrrOpt.disabled = mode !== 'io';
+  if (mode !== 'io' && algoSel.value === 'vrr') algoSel.value = 'rr';
+  const needsQuantum = QUANTUM_ALGOS.includes(algoSel.value);
   quantumField.classList.toggle('show', needsQuantum);
   setPriorityColumnVisible(PRIORITY_ALGOS.includes(algoSel.value));
   resourceAlgoField.classList.toggle('show', mode === 'io');
@@ -431,7 +437,7 @@ function runSimulation() {
     return;
   }
 
-  const needsQuantum = algo === 'rr' || algo === 'pri_rr';
+  const needsQuantum = QUANTUM_ALGOS.includes(algo);
   const labelText = ALGO_NAMES[algo] + (needsQuantum ? ` · quantum = ${quantumInput.value}` : '');
 
   const metrics = computeMetrics({ procs, segments: result.segments, finish: result.finish });
@@ -460,7 +466,7 @@ function runSimulation() {
 function runIoSimulation() {
   const algo = algoSel.value;
   const quantum = parseInt(quantumInput.value, 10);
-  const needsQuantum = algo === 'rr' || algo === 'pri_rr';
+  const needsQuantum = QUANTUM_ALGOS.includes(algo);
   if (needsQuantum && (isNaN(quantum) || quantum <= 0)) {
     errMsg.textContent = 'El quantum debe ser un número mayor a 0.';
     errMsg.classList.add('show');
@@ -501,6 +507,7 @@ function runIoSimulation() {
     quantumText: needsQuantum ? quantumInput.value : null,
     algo,
     readyLog: result.readyLog,
+    vrrLog: result.vrrLog,
     resourceLabels: result.resources,
     resourceAlgo
   });

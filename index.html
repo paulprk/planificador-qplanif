@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Planificador de CPU</title>
   <meta name="description" content="Simulador de algoritmos de planificación de CPU (FCFS, SJF, SRTF, Round Robin, Prioridades) con diagrama de Gantt animado.">
-  <link rel="stylesheet" href="css/styles.css?v=14">
+  <link rel="stylesheet" href="css/styles.css?v=15">
   <script>
     try {
       var savedTheme = localStorage.getItem('planificador-cpu-theme');
@@ -125,6 +125,7 @@
             <option value="sjf">SJF — Shortest Job First (no expulsivo)</option>
             <option value="srtf">SRTF — Shortest Remaining Time First (expulsivo)</option>
             <option value="rr">Round Robin</option>
+            <option value="vrr" hidden disabled>Round Robin virtual (VRR) · solo modo E/S</option>
             <option value="pri">Prioridades (no expulsivo)</option>
             <option value="pri_exp">Prioridades (expulsivo)</option>
             <option value="pri_rr">Prioridades + Round Robin</option>

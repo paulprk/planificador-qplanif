@@ -372,7 +372,7 @@ function updateViewAvailability(resourceLabels) {
 }
 
 /** Pinta un nuevo resultado de simulación y arranca la reproducción desde el instante 0. */
-export function renderSimulation({ procs, segments, finish, labelText, showPriority, quantumText, algo, readyLog, resourceLabels, resourceAlgo }) {
+export function renderSimulation({ procs, segments, finish, labelText, showPriority, quantumText, algo, readyLog, vrrLog, resourceLabels, resourceAlgo }) {
   pausePlayback();
   lastProcs = procs;
   lastSegments = segments;
@@ -388,6 +388,7 @@ export function renderSimulation({ procs, segments, finish, labelText, showPrior
     procs, segments, finish, algo,
     quantum: quantumText ? parseInt(quantumText, 10) : null,
     resourceAlgo: resourceLabels ? resourceAlgo : null,
+    vrrLog: vrrLog || null,
     resourceLabels: resourceLabels || null
   }, (t) => { pausePlayback(); setInstant(t); });
   algoLabelEl.textContent = labelText;

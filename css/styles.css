@@ -716,6 +716,7 @@ button:focus-visible, select:focus-visible, input:focus-visible {
   font-weight: 600;
   color: var(--ink);
 }
+.ready-chip.aux { border-style: dashed; }
 .ready-chip .pos {
   display: inline-flex;
   align-items: center;

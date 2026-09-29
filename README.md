@@ -11,6 +11,7 @@ Simulador web de algoritmos de planificación de CPU, inspirado en [qplanif](htt
   - **SJF** — Shortest Job First (no expulsivo)
   - **SRTF** — Shortest Remaining Time First (expulsivo)
   - **Round Robin** (con quantum configurable)
+  - **Round Robin virtual (VRR)** (solo en modo E/S: cola auxiliar para los procesos que vuelven de E/S con quantum pendiente)
   - **Prioridades** (no expulsivo)
   - **Prioridades** (expulsivo)
   - **Prioridades + Round Robin** (expulsivo entre prioridades, RR entre procesos de igual prioridad)

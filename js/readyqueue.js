@@ -6,7 +6,7 @@
  * porque cada uno tiene su propia cola independiente.
  */
 import { readyQueueAt } from './algorithms.js';
-import { ioReadyQueueAt } from './iosim.js';
+import { ioReadyQueueAt, ioAuxCountAt } from './iosim.js';
 import { colorFor } from './colors.js';
 
 const wrapEl = document.getElementById('readyQueueWrap');
@@ -32,7 +32,7 @@ function makeRow(label) {
   return items;
 }
 
-function renderChips(container, tasks) {
+function renderChips(container, tasks, auxCount = 0) {
   container.innerHTML = '';
   if (tasks.length === 0) {
     const empty = document.createElement('span');
@@ -44,7 +44,8 @@ function renderChips(container, tasks) {
   tasks.forEach((p, i) => {
     const colorKey = colorFor(lastProcs, p.id);
     const chip = document.createElement('span');
-    chip.className = 'ready-chip';
+    chip.className = 'ready-chip' + (i < auxCount ? ' aux' : '');
+    if (i < auxCount) chip.title = 'Cola auxiliar: volvió de E/S con quantum pendiente y se atiende antes que la cola de listos.';
     chip.style.background = `var(--${colorKey}-soft)`;
     chip.style.borderColor = `var(--${colorKey})`;
 
@@ -91,7 +92,7 @@ export function renderReadyQueueAt(t) {
       const res = Number(el.dataset.res);
       const ids = ioReadyQueueAt(lastReadyLog, res, t);
       const tasks = ids.map((id) => lastProcs.find((p) => p.id === id)).filter(Boolean);
-      renderChips(el, tasks);
+      renderChips(el, tasks, res === 0 && lastAlgo === 'vrr' ? ioAuxCountAt(lastReadyLog, t) : 0);
     });
     return;
   }

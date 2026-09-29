@@ -58,7 +58,7 @@ function annotate(procs, segments) {
  * @param resourceAlgo algoritmo de las colas de E/S ('fcfs' | 'sjf' | 'pri') o null en modo simple
  * @param resourceLabels null en modo simple; ['CPU', 'R1', ...] en modo E/S
  */
-export function buildNarration({ procs, segments: rawSegments, finish, algo, quantum, resourceAlgo, resourceLabels }) {
+export function buildNarration({ procs, segments: rawSegments, finish, algo, quantum, resourceAlgo, resourceLabels, vrrLog }) {
   const segments = mergeAdjacent(rawSegments);
   const byId = {};
   procs.forEach((p) => { byId[p.id] = p; });
@@ -98,10 +98,17 @@ export function buildNarration({ procs, segments: rawSegments, finish, algo, qua
     return null;
   };
 
+  const vrrDispatch = (t, id) => (vrrLog ? vrrLog.dispatch.find((d) => d.t === t && d.id === id) : null);
+  const vrrAux = (t, id) => (vrrLog ? vrrLog.aux.find((d) => d.t === t && d.id === id) : null);
+  const unidades = (n) => `${n} ${n === 1 ? 'unidad' : 'unidades'}`;
+
   function whyCpu(t, seg) {
+    const vd = algo === 'vrr' ? vrrDispatch(t, seg.id) : null;
+    if (vd && vd.from === 'aux') return `viene de la cola auxiliar: volvió de E/S con ${unidades(vd.slice)} de su quantum sin usar, y esa cola se atiende antes que la de listos. Usa la CPU solo esas ${unidades(vd.slice)}.`;
     const mine = { id: seg.id, seg, entry: (ivsOf[seg.id].find((iv) => iv.kind === 'wait-cpu' && iv.end === t) || { start: t }).start };
     const others = waiting(t, 0).filter((c) => c.id !== seg.id);
     if (others.length === 0) return 'es el único proceso listo.';
+    if (algo === 'vrr') return `es el primero de la cola de listos (la auxiliar está vacía). Recibe un quantum completo de ${quantum}.`;
     if (algo === 'rr') return 'es el primero de la cola de listos (Round Robin atiende en el orden en que se formó la cola).';
     const mv = cpuMetric(mine);
     const tie = others.some((c) => cpuMetric(c) === mv);
@@ -162,7 +169,12 @@ export function buildNarration({ procs, segments: rawSegments, finish, algo, qua
           let reason = { main: 'deja la CPU y vuelve a la cola de listos.', why: '' };
           if (x && x.id !== p.id) {
             const xp = byId[x.id];
-            if (algo === 'rr') reason = { main: 'agota su quantum y vuelve al final de la cola de listos.', why: `Usó ${quantum} unidades seguidas de CPU; ahora le toca al siguiente.` };
+            if (algo === 'vrr') {
+              const vd = vrrDispatch(s.start, p.id);
+              reason = vd && vd.from === 'aux'
+                ? { main: 'agota su quantum restante y vuelve a la cola de listos.', why: `Usó las ${unidades(vd.slice)} que le tocaban desde la cola auxiliar; ahora le toca al siguiente.` }
+                : { main: 'agota su quantum y vuelve al final de la cola de listos.', why: `Usó ${quantum} unidades seguidas de CPU; ahora le toca al siguiente.` };
+            } else if (algo === 'rr') reason = { main: 'agota su quantum y vuelve al final de la cola de listos.', why: `Usó ${quantum} unidades seguidas de CPU; ahora le toca al siguiente.` };
             else if (algo === 'srtf') reason = { main: `es expropiado por ${xp.name} y vuelve a la cola de listos.`, why: `${xp.name} necesita menos tiempo de CPU que él (${x.rem} < ${next.rem}), así que le quita la CPU.` };
             else if (algo === 'pri_exp') reason = { main: `es expropiado por ${xp.name} y vuelve a la cola de listos.`, why: `${xp.name} tiene mayor prioridad (${xp.priority} < ${p.priority}; el número más bajo es el más urgente).` };
             else if (algo === 'pri_rr') {
@@ -176,7 +188,9 @@ export function buildNarration({ procs, segments: rawSegments, finish, algo, qua
       } else if (isLast) {
         push(s.end, 'end', `${p.name} termina de usar ${R} y finaliza en t=${finish[p.id]}.`, p.id, retornoWhy(p));
       } else if (next.res === 0) {
-        push(s.end, 'io-end', `${p.name} termina de usar ${R} y vuelve a la cola de listos.`, p.id, 'Necesita CPU otra vez: espera su turno.');
+        const va = algo === 'vrr' ? vrrAux(s.end, p.id) : null;
+        if (va) push(s.end, 'io-end', `${p.name} termina de usar ${R} y entra a la cola auxiliar.`, p.id, `Le quedaron ${unidades(va.resto)} de su quantum sin usar, así que espera en la cola auxiliar, que se atiende antes que la de listos.`);
+        else push(s.end, 'io-end', `${p.name} termina de usar ${R} y vuelve a la cola de listos.`, p.id, algo === 'vrr' ? 'No le sobró quantum al pedir E/S, así que espera en la cola de listos común.' : 'Necesita CPU otra vez: espera su turno.');
       } else {
         push(s.end, 'io-end', `${p.name} termina de usar ${R} y pide ${resName(next.res)}.`, p.id);
         if (next.start > s.end) push(s.end, 'blocked', `${p.name} espera en la cola de ${resName(next.res)}.`, p.id, `${resName(next.res)} está ocupado y atiende a un proceso por vez.`);
