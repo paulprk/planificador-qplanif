@@ -18,10 +18,21 @@ export function resetFlip() {
   lastT.clear();
 }
 
-export function flipRender(hosts, render, t, key) {
+const stagger = () => Math.min(100, duration * 0.15);
+const isStep = (prev, t) => prev !== undefined && Math.abs(t - prev) === 1;
+const isStart = (prev, t) => prev === undefined && t === 0;
+
+/**
+ * Con `cueHost` (la lista de explicaciones, con `data-pid` en cada renglón),
+ * las fichas de un proceso con explicación esperan a que aparezca su renglón:
+ * si llegan al panel nuevas, salen desde el texto; si ya estaban, viajan
+ * recién entonces. Solo al avanzar hacia adelante (o al arrancar en t = 0).
+ */
+export function flipRender(hosts, render, t, key, cueHost) {
   const prev = lastT.get(key);
   lastT.set(key, t);
-  const animate = prev !== undefined && Math.abs(t - prev) === 1 && !reduced();
+  const cued = !!cueHost && !reduced() && ((isStep(prev, t) && t > prev) || isStart(prev, t));
+  const animate = (isStep(prev, t) || cued) && !reduced();
 
   const before = new Map();
   if (animate) {
@@ -36,10 +47,32 @@ export function flipRender(hosts, render, t, key) {
   render();
   if (!animate) return;
 
+  const cues = new Map();
+  if (cued) {
+    [...cueHost.children].forEach((li, i) => {
+      if (li.dataset.pid === undefined) return;
+      cues.set(li.dataset.pid, { delay: i * stagger() + duration * 0.3, from: (li.querySelector('.nar-main') || li).getBoundingClientRect() });
+    });
+  }
+
   hosts.forEach((h, hi) => { const o = h.getBoundingClientRect(); h.querySelectorAll('[data-pid]').forEach((el) => {
     const old = before.get(`${hi}:${el.dataset.pid}`);
     const now = el.getBoundingClientRect();
     if (now.width === 0) return;
+    const cue = cues.get(el.dataset.pid);
+    if (!old && cue) {
+      el.style.position = 'relative';
+      el.style.zIndex = '5';
+      const a = el.animate(
+        [
+          { opacity: 0, transform: `translate(${cue.from.left - now.left}px, ${cue.from.top - now.top}px) scale(0.7)`, boxShadow: '0 0 0 3px var(--accent-soft)' },
+          { opacity: 1, transform: 'translate(0, 0) scale(1)', boxShadow: '0 0 0 0 transparent' }
+        ],
+        { duration: duration * 1.1, delay: cue.delay, easing: 'cubic-bezier(0.3, 0.7, 0.2, 1)', fill: 'backwards' }
+      );
+      a.onfinish = a.oncancel = () => { el.style.position = ''; el.style.zIndex = ''; };
+      return;
+    }
     if (!old) {
       el.animate(
         [{ opacity: 0, transform: 'scale(0.6)' }, { opacity: 1, transform: 'scale(1)' }],
@@ -57,7 +90,7 @@ export function flipRender(hosts, render, t, key) {
         { transform: `translate(${dx}px, ${dy}px)`, boxShadow: '0 0 0 3px var(--accent-soft)' },
         { transform: 'translate(0, 0)', boxShadow: '0 0 0 0 transparent' }
       ],
-      { duration, easing: 'cubic-bezier(0.3, 0.7, 0.2, 1)' }
+      { duration, delay: cue ? cue.delay : 0, easing: 'cubic-bezier(0.3, 0.7, 0.2, 1)', fill: 'backwards' }
     );
     anim.onfinish = anim.oncancel = () => { el.style.position = ''; el.style.zIndex = ''; };
   }); });
@@ -67,7 +100,7 @@ export function flipRender(hosts, render, t, key) {
 export function fadeSwap(host, render, t, key) {
   const prev = lastT.get(key);
   lastT.set(key, t);
-  const animate = prev !== undefined && Math.abs(t - prev) === 1 && !reduced();
+  const animate = (isStep(prev, t) || isStart(prev, t)) && !reduced();
   const oldH = host.offsetHeight;
   render();
   if (!animate) return;
@@ -75,7 +108,7 @@ export function fadeSwap(host, render, t, key) {
   [...host.children].forEach((li, i) => {
     li.animate(
       [{ opacity: 0, transform: 'translateY(10px)' }, { opacity: 1, transform: 'translateY(0)' }],
-      { duration: duration * 0.8, delay: i * Math.min(100, duration * 0.15), easing: 'ease-out', fill: 'backwards' }
+      { duration: duration * 0.8, delay: i * stagger(), easing: 'ease-out', fill: 'backwards' }
     );
   });
   if (oldH !== newH) {

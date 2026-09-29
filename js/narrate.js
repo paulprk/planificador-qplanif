@@ -518,6 +518,7 @@ export function renderNarrationAt(t) {
     evs.forEach((ev) => {
       const li = document.createElement('li');
       li.className = `nar-${ev.kind}`;
+      if (ev.id != null) li.dataset.pid = ev.id;
       eventText(li, ev);
       ul.appendChild(li);
     });
@@ -545,7 +546,7 @@ export function renderNarrationAt(t) {
         box.appendChild(stateRow(`Esperan ${labels[i + 1]}`, ids.map((id) => chip(data.procs, id))));
       });
     }
-  }, t, 'narration');
+  }, t, 'narration', ul);
 
   document.querySelectorAll('#narrationLog > li').forEach((li) => {
     li.classList.toggle('active', parseInt(li.dataset.t, 10) === t);
