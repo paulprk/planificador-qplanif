@@ -41,10 +41,10 @@ const RESOURCE_ALGO_NAMES = { fcfs: 'FCFS', sjf: 'SJF', pri: 'Prioridades' };
 const DEFAULT_IO_TEXT = `RECURSO "R1"
 
 TAREA "P1"
-INICIO=0 PRIORIDAD=1 [CPU,2] [1,3] [CPU,1]
+INICIO=0 [CPU,2] [1,3] [CPU,1]
 
 TAREA "P2"
-INICIO=1 PRIORIDAD=2 [CPU,4]`;
+INICIO=1 [CPU,4]`;
 
 let mode = 'simple'; // 'simple' | 'io'
 let ioTasks = null;

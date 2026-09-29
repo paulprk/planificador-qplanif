@@ -62,21 +62,26 @@ export function parseDefText(text) {
   return { tasks, resourceNames };
 }
 
+/** PRIORIDAD solo se escribe si difiere de la que el parser asume por posición (i + 1). */
+function prioText(priority, i) {
+  return priority === i + 1 ? '' : ` PRIORIDAD=${priority}`;
+}
+
 /** El inverso de parseDefText para lotes simples (una sola ráfaga de CPU por proceso). */
 export function defTextFromProcesses(procs) {
   return procs
-    .map((p) => `TAREA "${p.name}"\nINICIO=${p.arrival} PRIORIDAD=${p.priority} [CPU,${p.burst}]`)
+    .map((p, i) => `TAREA "${p.name}"\nINICIO=${p.arrival}${prioText(p.priority, i)} [CPU,${p.burst}]`)
     .join('\n\n');
 }
 
 /** El inverso de parseDefText para lotes de E/S (tareas con ráfagas alternadas CPU/recurso). */
 export function defTextFromIoTasks(tasks, resourceNames) {
   const resLines = resourceNames.map((name) => `RECURSO "${name}"`);
-  const taskLines = tasks.map((t) => {
+  const taskLines = tasks.map((t, i) => {
     const brackets = t.bursts
       .map((b) => (b.res === 0 ? `[CPU,${b.dur}]` : `[${b.res},${b.dur}]`))
       .join(' ');
-    return `TAREA "${t.name}"\nINICIO=${t.arrival} PRIORIDAD=${t.priority} ${brackets}`;
+    return `TAREA "${t.name}"\nINICIO=${t.arrival}${prioText(t.priority, i)} ${brackets}`;
   });
   const resBlock = resLines.join('\n');
   return [resBlock, ...taskLines].filter(Boolean).join('\n\n');
