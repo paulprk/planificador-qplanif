@@ -22,6 +22,19 @@ const stagger = () => Math.min(100, duration * 0.15);
 const isStep = (prev, t) => prev !== undefined && Math.abs(t - prev) === 1;
 const isStart = (prev, t) => prev === undefined && t === 0;
 
+export function inView(el) {
+  const r = (el.closest('.narration') || el).getBoundingClientRect();
+  return r.top < window.innerHeight - 100 && r.bottom > 100;
+}
+
+export function hasSeen(key) {
+  return lastT.has(key);
+}
+
+export function forgetKeys(...keys) {
+  keys.forEach((k) => lastT.delete(k));
+}
+
 /**
  * Con `cueHost` (la lista de explicaciones, con `data-pid` en cada renglón),
  * las fichas de un proceso con explicación esperan a que termine de aparecer
@@ -31,7 +44,7 @@ const isStart = (prev, t) => prev === undefined && t === 0;
 export function flipRender(hosts, render, t, key, cueHost) {
   const prev = lastT.get(key);
   lastT.set(key, t);
-  const cued = !!cueHost && !reduced() && ((isStep(prev, t) && t > prev) || isStart(prev, t));
+  const cued = !!cueHost && !reduced() && ((isStep(prev, t) && t > prev) || (isStart(prev, t) && inView(cueHost)));
   const animate = (isStep(prev, t) || cued) && !reduced();
 
   const before = new Map();
@@ -105,7 +118,7 @@ export function flipRender(hosts, render, t, key, cueHost) {
 export function fadeSwap(host, render, t, key) {
   const prev = lastT.get(key);
   lastT.set(key, t);
-  const animate = (isStep(prev, t) || isStart(prev, t)) && !reduced();
+  const animate = (isStep(prev, t) || (isStart(prev, t) && inView(host))) && !reduced();
   const oldH = host.offsetHeight;
   render();
   if (!animate) return;

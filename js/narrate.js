@@ -7,7 +7,7 @@
  * que dibuja el panel está al final del archivo.
  */
 import { stateIntervals } from './metrics.js';
-import { flipRender, fadeSwap, resetFlip } from './flip.js';
+import { flipRender, fadeSwap, resetFlip, inView, hasSeen, forgetKeys } from './flip.js';
 import { colorFor } from './colors.js';
 
 function list(items) {
@@ -496,8 +496,30 @@ export function initNarrationMap(getT) {
   });
 }
 
+let pendingStart = false;
+let currentT = -1;
+let startWatched = false;
+
+function watchStart() {
+  if (startWatched) return;
+  startWatched = true;
+  const check = () => {
+    if (!pendingStart || currentT !== 0 || !inView(document.getElementById('narrationEvents'))) return;
+    pendingStart = false;
+    forgetKeys('events', 'narration');
+    renderNarrationAt(0);
+  };
+  window.addEventListener('scroll', check, { passive: true });
+  window.addEventListener('resize', check);
+}
+
 export function renderNarrationAt(t) {
   if (!data) return;
+  const ulEl = document.getElementById('narrationEvents');
+  if (t !== 0) pendingStart = false;
+  else if (!hasSeen('events') && !inView(ulEl)) pendingStart = true;
+  currentT = t;
+  if (pendingStart) watchStart();
   document.getElementById('narrationT').textContent = `Instante ${t}`;
   const ul = document.getElementById('narrationEvents');
   fadeSwap(ul, () => {
