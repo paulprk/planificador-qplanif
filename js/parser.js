@@ -74,7 +74,7 @@ export function defTextFromIoTasks(tasks, resourceNames) {
   const resLines = resourceNames.map((name) => `RECURSO "${name}"`);
   const taskLines = tasks.map((t) => {
     const brackets = t.bursts
-      .map((b) => (b.res === 0 ? `[CPU,${b.dur}]` : `[${resourceNames[b.res - 1]},${b.dur}]`))
+      .map((b) => (b.res === 0 ? `[CPU,${b.dur}]` : `[${b.res},${b.dur}]`))
       .join(' ');
     return `TAREA "${t.name}"\nINICIO=${t.arrival} PRIORIDAD=${t.priority} ${brackets}`;
   });
