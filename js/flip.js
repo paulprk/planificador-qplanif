@@ -6,7 +6,7 @@
  * retrocede de a un instante.
  */
 const lastT = new Map();
-let duration = 550;
+let duration = 420;
 
 const reduced = () => window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -18,7 +18,7 @@ export function resetFlip() {
   lastT.clear();
 }
 
-const stagger = () => Math.min(100, duration * 0.15);
+const stagger = () => Math.min(70, duration * 0.12);
 const isStep = (prev, t) => prev !== undefined && Math.abs(t - prev) === 1;
 const isStart = (prev, t) => prev === undefined && t === 0;
 
@@ -64,7 +64,7 @@ export function flipRender(hosts, render, t, key, cueHost, mode = 'text') {
   if (cued) {
     [...cueHost.children].forEach((li, i) => {
       if (li.dataset.pid === undefined) return;
-      const delay = i * stagger() + duration * 0.9;
+      const delay = i * stagger() + duration * 0.6;
       cues.set(li.dataset.pid, { delay, from: (li.querySelector('.chip-dot') || li.querySelector('.nar-main') || li).getBoundingClientRect() });
       const d = mode === 'text' && li.querySelector('.chip-dot');
       if (d) d.animate([{ transform: 'scale(1)' }, { transform: 'scale(2)', offset: 0.4 }, { transform: 'scale(1)' }], { duration: duration * 0.7, delay, easing: 'ease-in-out' });
@@ -86,7 +86,7 @@ export function flipRender(hosts, render, t, key, cueHost, mode = 'text') {
           { opacity: 1, transform: `translate(${cue.from.left - now.left}px, ${cue.from.top - now.top}px)`, boxShadow: '0 0 0 4px var(--accent-soft)', offset: 0.1, easing: 'cubic-bezier(0.4, 0, 0.2, 1)' },
           { opacity: 1, transform: 'translate(0, 0)', boxShadow: '0 0 0 0 transparent', offset: 1 }
         ],
-        { duration: duration * 1.4, delay: cue.delay, easing: 'linear', fill: 'backwards' }
+        { duration: duration * 1.1, delay: cue.delay, easing: 'linear', fill: 'backwards' }
       );
       a.onfinish = a.oncancel = () => { el.style.position = ''; el.style.zIndex = ''; };
       return;

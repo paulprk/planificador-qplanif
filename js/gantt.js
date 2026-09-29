@@ -120,7 +120,7 @@ function startPlayback() {
 }
 
 function pausePlayback() {
-  setFlipDuration(550);
+  setFlipDuration(420);
   playing = false;
   clearInterval(playTimer);
   updatePlayBtn();

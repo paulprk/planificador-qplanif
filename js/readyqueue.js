@@ -47,7 +47,7 @@ function makeRow(label, hint, opts = {}) {
   g2.className = 'rq-group';
   const cap2 = document.createElement('span');
   cap2.className = 'rq-cap';
-  cap2.textContent = opts.queueCap || 'En espera';
+  cap2.textContent = opts.queueCap || 'Cola de espera';
   const items = document.createElement('div');
   items.className = 'ready-queue-items';
   g2.append(cap2, items);
@@ -77,7 +77,7 @@ function restoAt(id, t) {
   return r;
 }
 
-function renderChips(container, tasks, auxCount = 0, t = 0, emptyText = 'vacía', showNext = true) {
+function renderChips(container, tasks, auxCount = 0, t = 0, emptyText = 'nadie espera', showNext = true) {
   container.innerHTML = '';
   if (tasks.length === 0) {
     const empty = document.createElement('span');
@@ -172,10 +172,10 @@ export function setReadyQueueData({ algo, procs, segments, finish, readyLog, ioM
     const vrr = algo === 'vrr';
     lastResourceLabels.forEach((label, res) => {
       if (res === 0 && vrr) {
-        makeRow('Cola auxiliar (VRR)', HINT_AUX, { queueCap: 'En espera' }).dataset.res = 'aux';
+        makeRow('Cola auxiliar (VRR)', HINT_AUX, { queueCap: 'Cola de espera' }).dataset.res = 'aux';
       }
       const hint = res === 0 ? (vrr ? HINT_CPU_VRR : HINT_CPU) : hintDevice(label);
-      makeRow(label, hint, { slotCap: res === 0 ? 'Ejecutando' : 'Usando', queueCap: 'En espera', res }).dataset.res = res;
+      makeRow(label, hint, { slotCap: res === 0 ? 'Ejecutando' : 'Usando', queueCap: res === 0 ? 'Cola de listos' : 'Cola de espera', res }).dataset.res = res;
     });
   } else {
     makeRow('CPU', HINT_CPU, { slotCap: 'Ejecutando', queueCap: 'Cola de listos', res: 0 }).id = 'readyQueueItemsSimple';
@@ -207,7 +207,7 @@ function drawReadyQueueAt(t) {
       const ids = ioReadyQueueAt(lastReadyLog, res, t);
       const tasks = ids.map((id) => lastProcs.find((p) => p.id === id)).filter(Boolean);
       if (isAux) renderChips(el, tasks.slice(0, auxCount), auxCount, t, 'vacía: nadie volvió de E/S con quantum pendiente');
-      else if (res === 0 && vrr) renderChips(el, tasks.slice(auxCount), 0, t, 'vacía', auxCount === 0);
+      else if (res === 0 && vrr) renderChips(el, tasks.slice(auxCount), 0, t, 'nadie espera', auxCount === 0);
       else renderChips(el, tasks);
     });
     wrapEl.querySelectorAll('.rq-slot-items').forEach((el) => renderSlot(el, runningAt(Number(el.dataset.slotRes), t)));
