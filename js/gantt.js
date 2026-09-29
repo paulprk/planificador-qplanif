@@ -406,7 +406,7 @@ export function renderSimulation({ procs, segments, finish, labelText, showPrior
   updateViewAvailability(lastResourceLabels);
 
   renderGuide({ procs, segments, resourceLabels: resourceLabels || null, algo, quantumText, resourceAlgo, hasSwitches: lastSwitches.length > 0 });
-  setReadyQueueData({ algo, procs, segments, finish, readyLog, ioMode: Boolean(resourceLabels), resourceLabels });
+  setReadyQueueData({ algo, procs, segments, finish, readyLog, ioMode: Boolean(resourceLabels), resourceLabels, vrrLog });
   setNarrationData({
     procs, segments, finish, algo,
     quantum: quantumText ? parseInt(quantumText, 10) : null,

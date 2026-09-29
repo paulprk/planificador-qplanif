@@ -720,6 +720,18 @@ button:focus-visible, select:focus-visible, input:focus-visible {
   color: var(--ink);
 }
 .ready-chip.aux { border-style: dashed; }
+.ready-chip .resto {
+  font-size: 0.68rem;
+  font-weight: 500;
+  color: var(--ink-soft);
+}
+.ready-queue-hint {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 0.76rem;
+  line-height: 1.4;
+  color: var(--ink-soft);
+}
 .ready-chip .pos {
   display: inline-flex;
   align-items: center;
