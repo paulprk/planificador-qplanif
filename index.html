@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Planificador de CPU</title>
   <meta name="description" content="Simulador de algoritmos de planificación de CPU (FCFS, SJF, SRTF, Round Robin, Prioridades) con diagrama de Gantt animado.">
-  <link rel="stylesheet" href="css/styles.css?v=16">
+  <link rel="stylesheet" href="css/styles.css?v=17">
   <script>
     try {
       var savedTheme = localStorage.getItem('planificador-cpu-theme');
@@ -107,9 +107,13 @@
       </div>
       <div class="code-box" id="codeBox">
         <label for="codeInput" class="code-box-label">Código del lote (formato qplanif) — se actualiza solo con la tabla. Editalo acá mismo y tocá "Cargar código" para aplicar los cambios:</label>
-        <textarea id="codeInput" rows="8" spellcheck="false" placeholder='TAREA &quot;1&quot; INICIO=0 PRIORIDAD=1 [CPU,7]&#10;TAREA &quot;2&quot; INICIO=0 PRIORIDAD=2 [CPU,15]'></textarea>
+        <textarea id="codeInput" rows="10" spellcheck="false" placeholder='TAREA &quot;1&quot;&#10;INICIO=0 PRIORIDAD=1 [CPU,7]&#10;&#10;TAREA &quot;2&quot;&#10;INICIO=0 PRIORIDAD=2 [CPU,15]'></textarea>
         <div class="table-actions">
           <button class="primary" id="loadCode" type="button">Cargar código</button>
+          <span class="font-ctl" role="group" aria-label="Tamaño de la letra del código">
+            <button id="codeSmaller" type="button" title="Achicar la letra" aria-label="Achicar la letra">A−</button>
+            <button id="codeBigger" type="button" title="Agrandar la letra" aria-label="Agrandar la letra">A+</button>
+          </span>
         </div>
         <p class="code-msg" id="codeMsg"></p>
       </div>

@@ -445,8 +445,8 @@ button:focus-visible, select:focus-visible, input:focus-visible {
 #codeInput {
   width: 100%;
   font-family: var(--font-display);
-  font-size: 0.82rem;
-  line-height: 1.5;
+  font-size: var(--code-size, 1.05rem);
+  line-height: 1.55;
   padding: 0.7rem 0.8rem;
   border-radius: 10px;
   border: none;
@@ -454,6 +454,7 @@ button:focus-visible, select:focus-visible, input:focus-visible {
   color: var(--ink);
   resize: vertical;
 }
+.font-ctl { display: inline-flex; gap: 0.3rem; margin-left: auto; }
 .code-msg {
   margin: 0.5rem 0 0;
   font-size: 0.8rem;

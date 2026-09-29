@@ -39,8 +39,12 @@ const codeInput = document.getElementById('codeInput');
 const RESOURCE_ALGO_NAMES = { fcfs: 'FCFS', sjf: 'SJF', pri: 'Prioridades' };
 
 const DEFAULT_IO_TEXT = `RECURSO "R1"
-TAREA "P1" INICIO=0 PRIORIDAD=1 [CPU,2] [R1,3] [CPU,1]
-TAREA "P2" INICIO=1 PRIORIDAD=2 [CPU,4]`;
+
+TAREA "P1"
+INICIO=0 PRIORIDAD=1 [CPU,2] [R1,3] [CPU,1]
+
+TAREA "P2"
+INICIO=1 PRIORIDAD=2 [CPU,4]`;
 
 let mode = 'simple'; // 'simple' | 'io'
 let ioTasks = null;
@@ -372,6 +376,26 @@ document.querySelectorAll('.mode-btn').forEach((btn) => {
 });
 
 // --- Carga de procesos por código (formato .def de qplanif) ---
+const CODE_SIZE_KEY = 'codeFontSize';
+const CODE_SIZE_MIN = 0.75;
+const CODE_SIZE_MAX = 2;
+let codeSize = 1.05;
+try {
+  const saved = parseFloat(localStorage.getItem(CODE_SIZE_KEY));
+  if (saved >= CODE_SIZE_MIN && saved <= CODE_SIZE_MAX) codeSize = saved;
+} catch (e) { /* sin almacenamiento: se usa el tamaño por defecto */ }
+
+function applyCodeSize(delta) {
+  codeSize = Math.min(CODE_SIZE_MAX, Math.max(CODE_SIZE_MIN, +(codeSize + delta).toFixed(2)));
+  codeInput.style.setProperty('--code-size', `${codeSize}rem`);
+  document.getElementById('codeSmaller').disabled = codeSize <= CODE_SIZE_MIN;
+  document.getElementById('codeBigger').disabled = codeSize >= CODE_SIZE_MAX;
+  try { localStorage.setItem(CODE_SIZE_KEY, String(codeSize)); } catch (e) { /* ignorar */ }
+}
+document.getElementById('codeSmaller').addEventListener('click', () => applyCodeSize(-0.1));
+document.getElementById('codeBigger').addEventListener('click', () => applyCodeSize(0.1));
+applyCodeSize(0);
+
 document.getElementById('loadCode').addEventListener('click', () => {
   const msg = document.getElementById('codeMsg');
   msg.className = 'code-msg';
