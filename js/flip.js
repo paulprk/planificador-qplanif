@@ -55,6 +55,10 @@ export function flipRender(hosts, render, t, key, cueHost, mode = 'text') {
         const r = el.getBoundingClientRect();
         if (r.width > 0) before.set(`${hi}:${el.dataset.pid}`, { x: r.left - o.left, y: r.top - o.top });
       });
+      h.querySelectorAll('[data-fade]').forEach((el, i) => {
+        const r = el.getBoundingClientRect();
+        before.set(`${hi}:fade${i}:${el.textContent}`, { x: r.left - o.left, y: r.top - o.top });
+      });
     });
   }
   render();
@@ -70,6 +74,15 @@ export function flipRender(hosts, render, t, key, cueHost, mode = 'text') {
       if (d) d.animate([{ transform: 'scale(1)' }, { transform: 'scale(2)', offset: 0.4 }, { transform: 'scale(1)' }], { duration: duration * 0.7, delay, easing: 'ease-in-out' });
     });
   }
+
+  const common = mode === 'delay' && cues.size ? Math.min(...[...cues.values()].map((c) => c.delay)) : 0;
+
+  hosts.forEach((h, hi) => { const o = h.getBoundingClientRect(); h.querySelectorAll('[data-fade]').forEach((el, i) => {
+    const old = before.get(`${hi}:fade${i}:${el.textContent}`);
+    const r = el.getBoundingClientRect();
+    if (old && Math.abs(old.x - (r.left - o.left)) < 1 && Math.abs(old.y - (r.top - o.top)) < 1) return;
+    el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: duration * 0.6, delay: common, fill: 'backwards' });
+  }); });
 
   hosts.forEach((h, hi) => { const o = h.getBoundingClientRect(); h.querySelectorAll('[data-pid]').forEach((el) => {
     const old = before.get(`${hi}:${el.dataset.pid}`);
@@ -108,7 +121,7 @@ export function flipRender(hosts, render, t, key, cueHost, mode = 'text') {
         { transform: `translate(${dx}px, ${dy}px)`, boxShadow: '0 0 0 3px var(--accent-soft)' },
         { transform: 'translate(0, 0)', boxShadow: '0 0 0 0 transparent' }
       ],
-      { duration, delay: cue ? cue.delay : 0, easing: 'cubic-bezier(0.3, 0.7, 0.2, 1)', fill: 'backwards' }
+      { duration, delay: mode === 'delay' ? common : (cue ? cue.delay : 0), easing: 'cubic-bezier(0.3, 0.7, 0.2, 1)', fill: 'backwards' }
     );
     anim.onfinish = anim.oncancel = () => { el.style.position = ''; el.style.zIndex = ''; };
   }); });

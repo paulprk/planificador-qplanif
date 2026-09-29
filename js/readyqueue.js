@@ -82,6 +82,7 @@ function renderChips(container, tasks, auxCount = 0, t = 0, emptyText = 'nadie e
   if (tasks.length === 0) {
     const empty = document.createElement('span');
     empty.className = 'ready-queue-empty';
+    empty.dataset.fade = '';
     empty.textContent = emptyText;
     container.appendChild(empty);
     return;
@@ -125,6 +126,7 @@ function renderChips(container, tasks, auxCount = 0, t = 0, emptyText = 'nadie e
   });
   const entry = document.createElement('span');
   entry.className = 'rq-entry';
+  entry.dataset.fade = '';
   entry.textContent = '← los nuevos se suman acá';
   container.appendChild(entry);
 }
@@ -135,6 +137,7 @@ function renderSlot(container, id) {
   if (!p) {
     const empty = document.createElement('span');
     empty.className = 'ready-queue-empty';
+    empty.dataset.fade = '';
     empty.textContent = 'libre';
     container.appendChild(empty);
     return;
