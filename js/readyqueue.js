@@ -5,7 +5,7 @@
  * E/S hay una fila por cada recurso (CPU + cada dispositivo declarado),
  * porque cada uno tiene su propia cola independiente.
  */
-import { ioReadyQueueAt, ioAuxCountAt } from './iosim.js';
+import { ioReadyQueueAt, ioAuxCountAt, ioLevelsAt } from './iosim.js';
 import { colorFor } from './colors.js';
 import { flipRender, resetFlip, forgetKeys } from './flip.js';
 
@@ -41,7 +41,18 @@ function makeRow(label, hint, opts = {}) {
     arrow.className = 'rq-arrow';
     arrow.textContent = '◀';
     arrow.title = 'Los procesos de la cola pasan de a uno hacia acá';
-    row.append(g, arrow);
+    if (opts.noQueue) row.appendChild(g);
+    else row.append(g, arrow);
+  }
+  if (opts.noQueue) {
+    if (hint) {
+      const h = document.createElement('p');
+      h.className = 'ready-queue-hint';
+      h.textContent = hint;
+      row.appendChild(h);
+    }
+    wrapEl.appendChild(row);
+    return null;
   }
   const g2 = document.createElement('div');
   g2.className = 'rq-group';
@@ -65,6 +76,7 @@ function makeRow(label, hint, opts = {}) {
 const HINT_CPU = 'A la izquierda, el proceso que está usando la CPU. A la derecha, la cola de listos en el orden en que se atenderán: el 1 ("próximo") es el siguiente en pasar a la CPU, y los que llegan o vuelven se ponen al final.';
 const HINT_CPU_VRR = 'Cola de listos normal: procesos que esperan la CPU y todavía no usaron su turno. Se atiende solo cuando la cola auxiliar está vacía. Cada uno recibe un quantum completo.';
 const HINT_AUX = 'Acá esperan los procesos que volvieron de E/S sin haber gastado todo su quantum. Se atiende ANTES que la cola de listos, y cada proceso usa solo el quantum que le sobraba ("resta"). Así no pierde su turno por haber ido a E/S.';
+const HINT_MLQ = 'Colas multinivel: hay una cola de listos por prioridad (abajo, de la más prioritaria a la menos). La CPU atiende la primera cola que tenga procesos y, dentro de ella, en orden (Round Robin). "Próximo" marca al que pasaría a la CPU si se liberara ahora.';
 const hintDevice = (label) => `A la izquierda, el proceso que está usando el dispositivo ${label}. A la derecha, los que esperan que se libere, en el orden en que se atenderán: el 1 ("próximo") es el siguiente.`;
 
 function restoAt(id, t) {
@@ -171,6 +183,21 @@ export function setReadyQueueData({ algo, procs, segments, finish, readyLog, ioM
   wrapEl.innerHTML = '';
   if (!procs) return;
 
+  const mlq = algo === 'pri_rr' || algo === 'pri_rr_ne';
+  if (mlq) {
+    const levels = [...new Set(procs.map((p) => p.priority))].sort((a, b) => a - b);
+    const labels = lastIoMode ? lastResourceLabels : ['CPU'];
+    makeRow('CPU', HINT_MLQ, { slotCap: 'Ejecutando', res: 0, noQueue: true });
+    levels.forEach((lv, i) => {
+      const items = makeRow(`Prioridad ${lv}`, null, { queueCap: i === 0 ? 'Cola (la más prioritaria)' : i === levels.length - 1 ? 'Cola (la menos prioritaria)' : 'Cola' });
+      items.dataset.level = lv;
+    });
+    labels.slice(1).forEach((label, i) => {
+      makeRow(label, hintDevice(label), { slotCap: 'Usando', queueCap: 'Cola de espera', res: i + 1 }).dataset.res = i + 1;
+    });
+    return;
+  }
+
   if (lastIoMode) {
     const vrr = algo === 'vrr';
     lastResourceLabels.forEach((label, res) => {
@@ -200,6 +227,24 @@ window.addEventListener('narration-start-replay', () => {
 });
 
 function drawReadyQueueAt(t) {
+  if (lastAlgo === 'pri_rr' || lastAlgo === 'pri_rr_ne') {
+    const levels = ioLevelsAt(lastReadyLog, t);
+    let nextShown = false;
+    wrapEl.querySelectorAll('.ready-queue-items').forEach((el) => {
+      if (el.dataset.level !== undefined) {
+        const ids = levels[el.dataset.level] || [];
+        const tasks = ids.map((id) => lastProcs.find((p) => p.id === id)).filter(Boolean);
+        renderChips(el, tasks, 0, t, 'vacía', !nextShown);
+        if (tasks.length) nextShown = true;
+      } else {
+        const res = Number(el.dataset.res);
+        const tasks = ioReadyQueueAt(lastReadyLog, res, t).map((id) => lastProcs.find((p) => p.id === id)).filter(Boolean);
+        renderChips(el, tasks, 0, t, 'nadie espera');
+      }
+    });
+    wrapEl.querySelectorAll('.rq-slot-items').forEach((el) => renderSlot(el, runningAt(Number(el.dataset.slotRes), t)));
+    return;
+  }
 
   if (lastIoMode) {
     const vrr = lastAlgo === 'vrr';

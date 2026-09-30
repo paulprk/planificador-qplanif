@@ -72,6 +72,8 @@ export function buildNarration({ procs, segments: rawSegments, finish, algo, qua
   let makespan = 0;
   procs.forEach((p) => { if (finish[p.id] > makespan) makespan = finish[p.id]; });
 
+  const mlq = algo === 'pri_rr' || algo === 'pri_rr_ne';
+  const cpuSegAt = (t) => segments.find((x) => x.res === 0 && x.start < t && t < x.end) || null;
   const events = {};
   const cap = (x) => x.charAt(0).toUpperCase() + x.slice(1);
   const push = (t, kind, text, id, why) => { (events[t] = events[t] || []).push({ kind, text, why: why || '', id }); };
@@ -106,7 +108,7 @@ export function buildNarration({ procs, segments: rawSegments, finish, algo, qua
     if (algo === 'fcfs') return c.entry;
     if (algo === 'sjf' || algo === 'srtf') return c.seg.rem;
     if (algo === 'pri' || algo === 'pri_exp') return effPrio(c.id, dt);
-    if (algo === 'pri_rr') return byId[c.id].priority;
+    if (mlq) return effPrio(c.id, dt);
     return null;
   };
 
@@ -129,6 +131,15 @@ export function buildNarration({ procs, segments: rawSegments, finish, algo, qua
     if (algo === 'vrr') return `es el primero de la cola de listos (la auxiliar está vacía). Recibe un quantum completo de ${quantum}.`;
     if (algo === 'rr') return 'es el primero de la cola de listos (Round Robin atiende en el orden en que se formó la cola).';
     const mv = cpuMetric(mine, dt);
+    if (mlq) {
+      const same = others.filter((c) => cpuMetric(c, dt) === mv);
+      const lower = [...new Set(others.filter((c) => cpuMetric(c, dt) > mv).map((c) => cpuMetric(c, dt)))].sort((a, b) => a - b);
+      const lowerTxt = lower.length === 1 ? ` La cola de prioridad ${lower[0]} espera: solo se atiende cuando las de arriba están vacías.`
+        : lower.length ? ` Las colas de prioridad ${list(lower.map(String))} esperan: solo se atienden cuando las de arriba están vacías.` : '';
+      return same.length
+        ? `es el primero de la cola de prioridad ${mv}, la más prioritaria que tiene procesos. Dentro de cada cola se atiende en orden (Round Robin, quantum ${quantum}); detrás espera ${list(same.slice(0, 3).map((c) => name(c.id)))}.${lowerTxt}`
+        : `la cola de prioridad ${mv} es la más prioritaria que tiene procesos, y él es el único en ella. Recibe un quantum de ${quantum}.${lowerTxt}`;
+    }
     const tie = others.some((c) => cpuMetric(c, dt) === mv);
     const showOthers = others.slice(0, 3);
     const more = others.length > 3 ? ', …' : '';
@@ -167,11 +178,19 @@ export function buildNarration({ procs, segments: rawSegments, finish, algo, qua
 
   procs.forEach((p) => {
     const inside = switches.find((w) => w.start < p.arrival && p.arrival < w.end);
-    push(p.arrival, 'arrive', `${p.name} llega y entra a la cola de listos.`, p.id,
-      inside ? `Hay un cambio de contexto en curso: ${name(inside.to)} ya fue elegido y esa decisión no se revisa, aunque llegue alguien mejor.` : '');
+    const runner = mlq ? cpuSegAt(p.arrival) : null;
+    const noPreempt = algo === 'pri_rr_ne' && runner && runner.id !== p.id && p.priority < byId[runner.id].priority;
+    push(p.arrival, 'arrive', mlq ? `${p.name} llega y entra a la cola de prioridad ${p.priority}.` : `${p.name} llega y entra a la cola de listos.`, p.id,
+      inside ? `Hay un cambio de contexto en curso: ${name(inside.to)} ya fue elegido y esa decisión no se revisa, aunque llegue alguien mejor.`
+        : noPreempt ? `Su cola es más prioritaria que la de ${name(runner.id)} (${p.priority} < ${byId[runner.id].priority}), pero sin apropiación no le quita la CPU: espera a que ${name(runner.id)} agote su quantum, pida E/S o termine.` : '');
   });
 
   agingLog.forEach((a) => {
+    if (mlq) {
+      push(a.t, 'aging', `${name(a.id)} sube a la cola de prioridad ${a.prio}.`, a.id,
+        `Lleva ${unidades(a.waited)} esperando sin que lo atiendan (envejecimiento: cada tanto tiempo esperando sube una cola, y entra al final de la nueva). Cuando tome la CPU vuelve a su cola original, la de prioridad ${byId[a.id].priority}.`);
+      return;
+    }
     push(a.t, 'aging', `${name(a.id)} mejora su prioridad a ${a.prio}.`, a.id,
       `Lleva ${unidades(a.waited)} esperando en la cola de listos (envejecimiento: cuanto más espera, más urgente se vuelve). Cuando tome la CPU vuelve a su prioridad original, ${byId[a.id].priority}.`);
   });
@@ -203,10 +222,17 @@ export function buildNarration({ procs, segments: rawSegments, finish, algo, qua
             } else if (algo === 'rr') reason = { main: 'agota su quantum y vuelve al final de la cola de listos.', why: `Usó ${quantum} unidades seguidas de CPU; ahora le toca al siguiente.` };
             else if (algo === 'srtf') reason = { main: `es expropiado por ${xp.name} y vuelve a la cola de listos.`, why: `${xp.name} necesita menos tiempo de CPU que él (${x.rem} < ${next.rem}), así que le quita la CPU.` };
             else if (algo === 'pri_exp') reason = { main: `es expropiado por ${xp.name} y vuelve a la cola de listos.`, why: `${xp.name} tiene mayor prioridad (${effPrio(x.id, s.end)} < ${p.priority}; el número más bajo es el más urgente).` };
-            else if (algo === 'pri_rr') {
-              reason = xp.priority < p.priority
-                ? { main: `es expropiado por ${xp.name} y vuelve a la cola de listos.`, why: `${xp.name} tiene mayor prioridad (${xp.priority} < ${p.priority}; el número más bajo es el más urgente).` }
-                : { main: 'agota su quantum y vuelve al final de su cola de listos.', why: `Usó ${quantum} unidades seguidas de CPU; ahora le toca al siguiente de su misma prioridad.` };
+            else if (mlq) {
+              const xpr = effPrio(x.id, s.end);
+              const lastTick = quantumTrace ? quantumTrace.find((q) => q.id === p.id && q.t === s.end - 1) : null;
+              const usedAll = lastTick ? lastTick.left === 1 : true;
+              if (algo === 'pri_rr' && xpr < p.priority && !usedAll) {
+                reason = { main: `es expropiado por ${xp.name} y vuelve a su cola (prioridad ${p.priority}).`, why: `${xp.name} está en una cola más prioritaria (${xpr} < ${p.priority}; el número más bajo es el más urgente) y hay apropiación: le quita la CPU sin esperar a que termine el quantum.` };
+              } else if (xpr < p.priority) {
+                reason = { main: `agota su quantum y vuelve al final de su cola (prioridad ${p.priority}).`, why: `Usó su quantum de ${quantum}. Ahora se vuelve a elegir y la cola de prioridad ${xpr}, la de ${xp.name}, es más prioritaria que la suya.` };
+              } else {
+                reason = { main: `agota su quantum y vuelve al final de su cola (prioridad ${p.priority}).`, why: `Usó su quantum de ${quantum}; ahora le toca al siguiente de su misma cola.` };
+              }
             }
           }
           push(s.end, 'preempt', `${p.name} ${reason.main}`, p.id, reason.why);
@@ -216,6 +242,7 @@ export function buildNarration({ procs, segments: rawSegments, finish, algo, qua
       } else if (next.res === 0) {
         const va = algo === 'vrr' ? vrrAux(s.end, p.id) : null;
         if (va) push(s.end, 'io-end', `${p.name} termina de usar ${R} y entra a la cola auxiliar.`, p.id, `Le quedaron ${unidades(va.resto)} de su quantum sin usar, así que espera en la cola auxiliar, que se atiende antes que la de listos.`);
+        else if (mlq) push(s.end, 'io-end', `${p.name} termina de usar ${R} y vuelve a la cola de prioridad ${p.priority}.`, p.id, 'Necesita CPU otra vez: vuelve a la cola de su prioridad y entra al final.');
         else push(s.end, 'io-end', `${p.name} termina de usar ${R} y vuelve a la cola de listos.`, p.id, algo === 'vrr' ? 'No le sobró quantum al pedir E/S, así que espera en la cola de listos común.' : 'Necesita CPU otra vez: espera su turno.');
       } else {
         push(s.end, 'io-end', `${p.name} termina de usar ${R} y pide ${resName(next.res)}.`, p.id);
@@ -244,7 +271,8 @@ export function buildNarration({ procs, segments: rawSegments, finish, algo, qua
   });
 
   // Orden dentro de cada instante: llegadas, salidas, entradas.
-  const ORDER = { arrive: 0, end: 1, 'burst-end': 1, 'io-end': 1, preempt: 1, blocked: 2, aging: 2, switch: 3, cpu: 3, io: 3 };
+  // Mismo orden que el motor: vuelven de E/S, llegan, envejecen y recién después se decide quién deja la CPU.
+  const ORDER = { 'io-end': 0, arrive: 0.5, aging: 0.7, end: 1, 'burst-end': 1, preempt: 1, blocked: 2, switch: 3, cpu: 3, io: 3 };
   Object.keys(events).forEach((t) => {
     events[t] = events[t].map((e, i) => ({ e, i })).sort((a, b) => ORDER[a.e.kind] - ORDER[b.e.kind] || a.i - b.i).map((x) => x.e);
   });

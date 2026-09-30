@@ -15,6 +15,7 @@ Simulador web de algoritmos de planificación de CPU, inspirado en [qplanif](htt
   - **Prioridades** (no expulsivo)
   - **Prioridades** (expulsivo)
   - **Prioridades + Round Robin** (expulsivo entre prioridades, RR entre procesos de igual prioridad)
+- Modo **Colas multinivel**: una cola de listos por prioridad, cada una con Round Robin y prioridad entre colas, con o sin apropiación. Con envejecimiento opcional, un proceso que espera N unidades sube a la cola de arriba y vuelve a la suya al obtener la CPU. La cola de listos se muestra fila por fila, una por prioridad.
 - Dos vistas del diagrama de Gantt:
   - **Vista única**: la línea de tiempo clásica de un único procesador (la que se dibuja a mano en los TPs).
   - **Vista por proceso**: una fila por proceso, mostrando los huecos de espera — igual al estilo de qplanif.

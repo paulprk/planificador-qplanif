@@ -13,10 +13,11 @@ export const ALGO_NAMES = {
   vrr: 'Round Robin virtual (VRR)',
   pri: 'Prioridades (no expulsivo)',
   pri_exp: 'Prioridades (expulsivo)',
-  pri_rr: 'Prioridades + Round Robin'
+  pri_rr: 'Prioridades + Round Robin',
+  pri_rr_ne: 'Colas multinivel sin apropiación'
 };
 
-export const PRIORITY_ALGOS = ['pri', 'pri_exp', 'pri_rr'];
+export const PRIORITY_ALGOS = ['pri', 'pri_exp', 'pri_rr', 'pri_rr_ne'];
 
 /**
  * Corre el algoritmo pedido sobre procesos `{ id, order, name, arrival, burst, priority }`
@@ -25,7 +26,7 @@ export const PRIORITY_ALGOS = ['pri', 'pri_exp', 'pri_rr'];
  */
 export function runAlgorithm(algo, procs, quantum, { contextSwitch = 0, aging = 0 } = {}) {
   if (!ALGO_NAMES[algo]) return { ok: false, error: `Algoritmo desconocido: ${algo}` };
-  if ((algo === 'rr' || algo === 'pri_rr') && (isNaN(quantum) || quantum <= 0)) {
+  if ((algo === 'rr' || algo === 'pri_rr' || algo === 'pri_rr_ne') && (isNaN(quantum) || quantum <= 0)) {
     return { ok: false, error: 'El quantum debe ser un número mayor a 0.' };
   }
   const tasks = procs.map((p) => ({

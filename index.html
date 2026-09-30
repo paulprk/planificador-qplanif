@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Planificador de CPU</title>
   <meta name="description" content="Simulador de algoritmos de planificación de CPU (FCFS, SJF, SRTF, Round Robin, Prioridades) con diagrama de Gantt animado.">
-  <link rel="stylesheet" href="css/styles.css?v=19">
+  <link rel="stylesheet" href="css/styles.css?v=20">
   <script>
     try {
       var savedTheme = localStorage.getItem('planificador-cpu-theme');
@@ -82,6 +82,7 @@
         <span class="mode-toggle-indicator" id="modeIndicator" aria-hidden="true"></span>
         <button type="button" class="mode-btn active" data-mode="simple">Modo simple</button>
         <button type="button" class="mode-btn" data-mode="io">Modo E/S</button>
+        <button type="button" class="mode-btn" data-mode="mlq">Colas multinivel</button>
       </div>
     </div>
 
@@ -100,6 +101,11 @@
         </thead>
         <tbody id="procBody"></tbody>
       </table>
+      <div class="mlq-intro" id="mlqIntro" hidden>
+        <p><strong>Colas multinivel.</strong> La cola de listos se divide en una cola por prioridad (1, 2, 3…; el número más bajo es la más prioritaria). Cada proceso entra en la cola de su prioridad.</p>
+        <p><strong>Dentro de cada cola</strong> los procesos se turnan con Round Robin (planificador horizontal). <strong>Entre colas</strong> manda la prioridad (planificador vertical): solo se atiende una cola cuando todas las de arriba están vacías.</p>
+        <p>Con <strong>apropiación</strong>, si llega alguien a una cola más prioritaria le quita la CPU al que ejecuta en ese instante; <strong>sin apropiación</strong>, espera a que agote su quantum, pida E/S o termine. Con <strong>envejecimiento</strong>, un proceso que espera N unidades sube a la cola de arriba y, cuando consigue la CPU, vuelve a su cola original.</p>
+      </div>
       <div class="io-summary" id="ioSummary" hidden></div>
       <div class="table-actions">
         <button id="addRow" type="button">+ Agregar proceso</button>
@@ -133,6 +139,7 @@
             <option value="pri">Prioridades (no expulsivo)</option>
             <option value="pri_exp">Prioridades (expulsivo)</option>
             <option value="pri_rr">Prioridades + Round Robin</option>
+            <option value="pri_rr_ne" hidden disabled>Sin apropiación entre colas</option>
           </select>
         </div>
         <div class="field" id="quantumField">
@@ -152,7 +159,7 @@
           <input type="number" id="ctxCost" min="0" value="0" class="num-cell" style="width:5rem">
         </div>
         <div class="field" id="agingField">
-          <label for="aging" title="Cada N unidades esperando en la cola de listos, la prioridad mejora en 1. Al tomar la CPU vuelve a la original. 0 = sin envejecimiento.">Envejecimiento cada</label>
+          <label for="aging" title="Cada N unidades esperando en la cola de listos, la prioridad mejora en 1 (en colas multinivel: sube a la cola de arriba). Al tomar la CPU vuelve a la original. 0 = sin envejecimiento.">Envejecimiento cada</label>
           <input type="number" id="aging" min="0" value="0" class="num-cell" style="width:5rem">
         </div>
         <button class="primary" id="simBtn" type="button" style="height:2.15rem">Simular</button>

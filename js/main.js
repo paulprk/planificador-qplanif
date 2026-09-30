@@ -46,36 +46,59 @@ INICIO=0 [CPU,2] [1,3] [CPU,1]
 TAREA "P2"
 INICIO=1 [CPU,4]`;
 
-let mode = 'simple'; // 'simple' | 'io'
+const DEFAULT_MLQ_TEXT = `RECURSO "R1"
+
+TAREA "P1"
+INICIO=0 PRIORIDAD=3 [CPU,4] [1,2] [CPU,2]
+
+TAREA "P2"
+INICIO=1 PRIORIDAD=2 [CPU,3]
+
+TAREA "P3"
+INICIO=2 PRIORIDAD=1 [CPU,2] [1,1] [CPU,1]
+
+TAREA "P4"
+INICIO=3 PRIORIDAD=2 [CPU,4]`;
+
+let mode = 'simple'; // 'simple' | 'io' | 'mlq'
 let ioTasks = null;
 let ioResourceNames = [];
+const lotePorModo = { io: null, mlq: null };
+const isIoLike = (m = mode) => m === 'io' || m === 'mlq';
+const MLQ_ALGOS = ['pri_rr', 'pri_rr_ne'];
+const MLQ_NAMES = { pri_rr: 'Colas multinivel con apropiación', pri_rr_ne: 'Colas multinivel sin apropiación' };
 
 function loadDefaultIo() {
-  const parsed = parseDefText(DEFAULT_IO_TEXT);
+  const parsed = parseDefText(mode === 'mlq' ? DEFAULT_MLQ_TEXT : DEFAULT_IO_TEXT);
   ioTasks = parsed.tasks;
   ioResourceNames = parsed.resourceNames;
 }
 
-const QUANTUM_ALGOS = ['rr', 'vrr', 'pri_rr'];
+const QUANTUM_ALGOS = ['rr', 'vrr', 'pri_rr', 'pri_rr_ne'];
 
 function updateFieldVisibility() {
-  const vrrOpt = algoSel.querySelector('option[value="vrr"]');
-  vrrOpt.hidden = mode !== 'io';
-  vrrOpt.disabled = mode !== 'io';
-  if (mode !== 'io' && algoSel.value === 'vrr') algoSel.value = 'rr';
+  const mlq = mode === 'mlq';
+  [...algoSel.options].forEach((o) => {
+    const show = mlq ? MLQ_ALGOS.includes(o.value) : o.value !== 'pri_rr_ne' && (o.value !== 'vrr' || mode === 'io');
+    o.hidden = !show;
+    o.disabled = !show;
+  });
+  algoSel.querySelector('option[value="pri_rr"]').textContent = mlq ? 'Con apropiación entre colas' : 'Prioridades + Round Robin';
+  document.querySelector('label[for="algo"]').textContent = mlq ? 'Apropiación' : 'Algoritmo de scheduling';
+  if (algoSel.selectedOptions[0] && algoSel.selectedOptions[0].disabled) algoSel.value = mlq ? 'pri_rr_ne' : (algoSel.value === 'pri_rr_ne' ? 'pri_rr' : 'rr');
   const needsQuantum = QUANTUM_ALGOS.includes(algoSel.value);
   quantumField.classList.toggle('show', needsQuantum);
   setPriorityColumnVisible(PRIORITY_ALGOS.includes(algoSel.value));
-  resourceAlgoField.classList.toggle('show', mode === 'io');
-  agingField.classList.toggle('show', algoSel.value === 'pri' || algoSel.value === 'pri_exp');
+  resourceAlgoField.classList.toggle('show', isIoLike());
+  agingField.classList.toggle('show', ['pri', 'pri_exp', 'pri_rr', 'pri_rr_ne'].includes(algoSel.value));
 }
 algoSel.addEventListener('change', updateFieldVisibility);
 
 document.getElementById('addRow').addEventListener('click', addDefaultRow);
 document.getElementById('resetRows').addEventListener('click', () => {
-  if (mode === 'io') {
+  if (isIoLike()) {
     loadDefaultIo();
-    setMode('io');
+    setMode(mode);
   } else {
     loadDefault();
     setMode('simple');
@@ -350,11 +373,20 @@ function moveModeIndicator() {
 }
 
 function setMode(newMode) {
+  if (newMode !== mode) {
+    if (isIoLike()) lotePorModo[mode] = { tasks: ioTasks, names: ioResourceNames };
+    if (isIoLike(newMode)) {
+      const saved = lotePorModo[newMode];
+      ioTasks = saved ? saved.tasks : null;
+      ioResourceNames = saved ? saved.names : [];
+    }
+  }
   mode = newMode;
+  document.getElementById('mlqIntro').hidden = mode !== 'mlq';
   document.querySelectorAll('.mode-btn').forEach((b) => b.classList.toggle('active', b.dataset.mode === mode));
   moveModeIndicator();
 
-  const isIo = mode === 'io';
+  const isIo = isIoLike();
   procTable.hidden = isIo;
   addRowBtn.hidden = isIo;
   ioSummary.hidden = !isIo;
@@ -414,10 +446,10 @@ document.getElementById('loadCode').addEventListener('click', () => {
     return;
   }
 
-  if (usable.some((t) => t.usesResources)) {
+  if (usable.some((t) => t.usesResources) || mode === 'mlq') {
     ioTasks = usable;
     ioResourceNames = resourceNames;
-    setMode('io');
+    setMode(mode === 'mlq' ? 'mlq' : 'io');
     msg.textContent = `Cargadas ${usable.length} tarea(s) con ${resourceNames.length} recurso(s) de E/S.`;
     msg.className = 'code-msg';
   } else {
@@ -445,7 +477,7 @@ function readCpuOptions() {
 function runSimulation() {
   errMsg.classList.remove('show');
 
-  if (mode === 'io') {
+  if (isIoLike()) {
     if (ioTasks) runIoSimulation();
     return;
   }
@@ -529,7 +561,7 @@ function runIoSimulation() {
     priority: t.priority
   }));
 
-  const labelText = ALGO_NAMES[algo]
+  const labelText = (mode === 'mlq' ? MLQ_NAMES[algo] : ALGO_NAMES[algo])
     + (needsQuantum ? ` · quantum = ${quantumInput.value}` : '')
     + ` · E/S: ${RESOURCE_ALGO_NAMES[resourceAlgo]}`;
 
@@ -555,6 +587,7 @@ function runIoSimulation() {
   });
   showComparison({
     ioMode: true,
+    algos: mode === 'mlq' ? MLQ_ALGOS : undefined,
     numResources: ioResourceNames.length,
     current: { algo, quantum: needsQuantum ? quantum : null },
     runOne: (a, q) => {
@@ -577,13 +610,13 @@ function showComparison(cfg) {
 
 function refreshComparison() {
   if (!lastComparison) return;
-  const { runOne, numResources, ioMode, current } = lastComparison;
+  const { runOne, numResources, ioMode, current, algos } = lastComparison;
   let quantums = parseQuantums(cmpQuantums.value);
   if (current.quantum && !quantums.includes(current.quantum)) {
     quantums = [...quantums, current.quantum].sort((a, b) => a - b);
   }
   if (quantums.length === 0) quantums = [2];
-  const rows = buildRows({ quantums, runOne, numResources });
+  const rows = buildRows({ quantums, runOne, numResources, algos });
   renderComparison({
     rows,
     ioMode,
@@ -600,7 +633,7 @@ function refreshComparison() {
 cmpQuantums.addEventListener('change', refreshComparison);
 
 document.getElementById('simBtn').addEventListener('click', runSimulation);
-resourceAlgoSel.addEventListener('change', () => { if (mode === 'io') runSimulation(); });
+resourceAlgoSel.addEventListener('change', () => { if (isIoLike()) runSimulation(); });
 
 // --- Arranque ---
 initPlayback();

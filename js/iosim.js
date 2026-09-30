@@ -51,11 +51,15 @@ export function simulateWithResources({ tasks, resourceNames, cpuAlgo, resourceA
   const running = new Array(numResources + 1).fill(null);
   const priorityQueues = { 0: {} };
   const isVrr = cpuAlgo === 'vrr';
-  const usesQuantum = cpuAlgo === 'rr' || cpuAlgo === 'pri_rr' || isVrr;
+  // Colas multinivel: una cola RR por prioridad; entre colas manda la prioridad (pri_rr con apropiación, pri_rr_ne sin).
+  const isMlq = cpuAlgo === 'pri_rr' || cpuAlgo === 'pri_rr_ne';
+  const mlqPreempt = cpuAlgo === 'pri_rr';
+  const topLevel = state.length ? Math.min(...state.map((k) => k.priority)) : 0;
+  const usesQuantum = cpuAlgo === 'rr' || isMlq || isVrr;
   const aux = [];
   const vrrLog = { aux: [], dispatch: [] };
   const quantumTrace = [];
-  const agingOn = aging > 0 && (cpuAlgo === 'pri' || cpuAlgo === 'pri_exp');
+  const agingOn = aging > 0 && (cpuAlgo === 'pri' || cpuAlgo === 'pri_exp' || isMlq);
   const agingLog = [];
   const switches = [];
   let switching = null;
@@ -71,7 +75,7 @@ export function simulateWithResources({ tasks, resourceNames, cpuAlgo, resourceA
   const readyLog = [];
 
   function flatQueueFor(res) {
-    if (res === 0 && cpuAlgo === 'pri_rr') {
+    if (res === 0 && isMlq) {
       const keys = Object.keys(priorityQueues[0]).map(Number).sort((a, b) => a - b);
       const out = [];
       keys.forEach((k) => priorityQueues[0][k].forEach((task) => out.push(task.id)));
@@ -84,7 +88,12 @@ export function simulateWithResources({ tasks, resourceNames, cpuAlgo, resourceA
   }
   function snapAllQueues(time) {
     for (let res = 0; res <= numResources; res++) {
-      readyLog.push({ t: time, res, queue: flatQueueFor(res), auxCount: res === 0 ? aux.length : 0 });
+      const snap = { t: time, res, queue: flatQueueFor(res), auxCount: res === 0 ? aux.length : 0 };
+      if (res === 0 && isMlq) {
+        snap.levels = {};
+        Object.keys(priorityQueues[0]).forEach((k) => { snap.levels[k] = priorityQueues[0][k].map((task) => task.id); });
+      }
+      readyLog.push(snap);
     }
   }
 
@@ -102,7 +111,7 @@ export function simulateWithResources({ tasks, resourceNames, cpuAlgo, resourceA
     if (res === 0 && isVrr && task.resto > 0) {
       aux.push(task);
       vrrLog.aux.push({ t, id: task.id, resto: task.resto });
-    } else if (res === 0 && cpuAlgo === 'pri_rr') {
+    } else if (res === 0 && isMlq) {
       const p = task.priority;
       if (!priorityQueues[0][p]) priorityQueues[0][p] = [];
       priorityQueues[0][p].push(task);
@@ -114,7 +123,7 @@ export function simulateWithResources({ tasks, resourceNames, cpuAlgo, resourceA
   function pickFromQueue(res) {
     if (res === 0 && isVrr && aux.length > 0) return aux.shift();
     const policy = policyForResource(res);
-    if (res === 0 && policy === 'pri_rr') {
+    if (res === 0 && isMlq) {
       const bp = bestPriorityKey();
       if (bp === null) return null;
       return priorityQueues[0][bp].shift();
@@ -169,15 +178,16 @@ export function simulateWithResources({ tasks, resourceNames, cpuAlgo, resourceA
       return;
     }
 
-    if (res === 0 && cpuAlgo === 'pri_rr') {
+    if (res === 0 && isMlq) {
       const bp = bestPriorityKey();
-      if (bp !== null && bp < task.priority) {
+      if (mlqPreempt && bp !== null && bp < task.priority) {
         // Alguien de mejor prioridad llegó: expulsión inmediata, sin esperar el quantum.
         closeSeg(0, t);
         enqueue(0, task, t);
         running[0] = null;
       } else if (task.quantumLeft === 0) {
-        if (bp !== null && bp === task.priority) {
+        // Al agotar el quantum se vuelve a elegir: pasa el primero de la cola más prioritaria con procesos (la propia incluida).
+        if (bp !== null && bp <= task.priority) {
           closeSeg(0, t);
           enqueue(0, task, t);
           running[0] = null;
@@ -273,7 +283,24 @@ export function simulateWithResources({ tasks, resourceNames, cpuAlgo, resourceA
       break;
     }
 
-    if (agingOn) {
+    if (agingOn && isMlq) {
+      // Envejecimiento entre colas: cada `aging` unidades esperando sube a la cola de arriba (al final de ella), hasta la cola más prioritaria.
+      const waiting = [];
+      Object.keys(priorityQueues[0]).map(Number).sort((a, b) => a - b).forEach((k) => priorityQueues[0][k].forEach((task) => waiting.push(task)));
+      if (switching) switching.task.waitAge++;
+      waiting.forEach((k) => {
+        k.waitAge++;
+        if (k.waitAge % aging === 0 && k.priority > topLevel) {
+          const q = priorityQueues[0][k.priority];
+          q.splice(q.indexOf(k), 1);
+          k.priority--;
+          k.queueSeq = enqueueSeq++;
+          if (!priorityQueues[0][k.priority]) priorityQueues[0][k.priority] = [];
+          priorityQueues[0][k.priority].push(k);
+          agingLog.push({ t: t + 1, id: k.id, prio: k.priority, waited: k.waitAge });
+        }
+      });
+    } else if (agingOn) {
       const waiting = queues[0].slice();
       if (switching) waiting.push(switching.task);
       waiting.forEach((k) => {
@@ -325,6 +352,16 @@ export function ioReadyQueueAt(readyLog, res, t) {
     if (snap.res === res) ids = snap.queue;
   }
   return ids;
+}
+
+/** Colas multinivel: `{ prioridad: [ids] }` de la CPU en el instante `t`. */
+export function ioLevelsAt(readyLog, t) {
+  let levels = {};
+  for (const snap of readyLog) {
+    if (snap.t > t) break;
+    if (snap.res === 0 && snap.levels) levels = snap.levels;
+  }
+  return levels;
 }
 
 /** Cuántos de los primeros de la cola de la CPU vienen de la cola auxiliar (VRR). */

@@ -13,10 +13,11 @@ const SHORT_NAMES = {
   pri_exp: 'Prioridades (exp.)',
   rr: 'Round Robin',
   vrr: 'Round Robin virtual',
-  pri_rr: 'Prioridades + RR'
+  pri_rr: 'Prioridades + RR (multinivel con aprop.)',
+  pri_rr_ne: 'Multinivel sin aprop.'
 };
 
-const ORDER = ['fcfs', 'sjf', 'srtf', 'pri', 'pri_exp', 'rr', 'vrr', 'pri_rr'];
+const ORDER = ['fcfs', 'sjf', 'srtf', 'pri', 'pri_exp', 'rr', 'vrr', 'pri_rr', 'pri_rr_ne'];
 
 /** "1, 2 4" -> [1, 2, 4] (enteros > 0, sin repetir, hasta 6). */
 export function parseQuantums(text) {
@@ -41,11 +42,11 @@ export function contextSwitches(segments) {
  * @param runOne (algo, quantum) => { procs, segments, finish } (cada modo sabe correr el lote)
  * @param numResources cantidad de dispositivos (0 en modo simple)
  */
-export function buildRows({ quantums, runOne, numResources }) {
+export function buildRows({ quantums, runOne, numResources, algos = ORDER.filter((a) => a !== 'pri_rr_ne') }) {
   const configs = [];
-  ORDER.forEach((algo) => {
+  algos.forEach((algo) => {
     if (algo === 'vrr' && !numResources) return;
-    if (algo === 'rr' || algo === 'vrr' || algo === 'pri_rr') quantums.forEach((q) => configs.push({ algo, quantum: q }));
+    if (algo === 'rr' || algo === 'vrr' || algo === 'pri_rr' || algo === 'pri_rr_ne') quantums.forEach((q) => configs.push({ algo, quantum: q }));
     else configs.push({ algo, quantum: null });
   });
   return configs.map((cfg) => {
