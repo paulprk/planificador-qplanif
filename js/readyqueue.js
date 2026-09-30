@@ -19,6 +19,8 @@ let lastReadyLog = null;
 let lastIoMode = false;
 let lastResourceLabels = null;
 let lastVrrLog = null;
+let lastQuantum = null;
+let lastAging = 0;
 
 function makeRow(label, hint, opts = {}) {
   const row = document.createElement('div');
@@ -76,7 +78,7 @@ function makeRow(label, hint, opts = {}) {
 const HINT_CPU = 'A la izquierda, el proceso que está usando la CPU. A la derecha, la cola de listos en el orden en que se atenderán: el 1 ("próximo") es el siguiente en pasar a la CPU, y los que llegan o vuelven se ponen al final.';
 const HINT_CPU_VRR = 'Cola de listos normal: procesos que esperan la CPU y todavía no usaron su turno. Se atiende solo cuando la cola auxiliar está vacía. Cada uno recibe un quantum completo.';
 const HINT_AUX = 'Acá esperan los procesos que volvieron de E/S sin haber gastado todo su quantum. Se atiende ANTES que la cola de listos, y cada proceso usa solo el quantum que le sobraba ("resta"). Así no pierde su turno por haber ido a E/S.';
-const HINT_MLQ = 'Colas multinivel: hay una cola de listos por prioridad (abajo, de la más prioritaria a la menos). La CPU atiende la primera cola que tenga procesos y, dentro de ella, en orden (Round Robin). "Próximo" marca al que pasaría a la CPU si se liberara ahora.';
+const HINT_MLQ = 'Cada proceso entra por la izquierda de la cola de su prioridad y sale por la derecha hacia la CPU. La CPU atiende la cola más prioritaria que tenga procesos (la resaltada es la que está atendiendo ahora); dentro de cada cola, en orden (Round Robin). "Próximo" marca al que pasaría a la CPU si se liberara ahora.';
 const hintDevice = (label) => `A la izquierda, el proceso que está usando el dispositivo ${label}. A la derecha, los que esperan que se libere, en el orden en que se atenderán: el 1 ("próximo") es el siguiente.`;
 
 function restoAt(id, t) {
@@ -89,7 +91,7 @@ function restoAt(id, t) {
   return r;
 }
 
-function renderChips(container, tasks, auxCount = 0, t = 0, emptyText = 'nadie espera', showNext = true) {
+function renderChips(container, tasks, auxCount = 0, t = 0, emptyText = 'nadie espera', showNext = true, entryText = '← los nuevos se suman acá') {
   container.innerHTML = '';
   if (tasks.length === 0) {
     const empty = document.createElement('span');
@@ -139,7 +141,7 @@ function renderChips(container, tasks, auxCount = 0, t = 0, emptyText = 'nadie e
   const entry = document.createElement('span');
   entry.className = 'rq-entry';
   entry.dataset.fade = '';
-  entry.textContent = '← los nuevos se suman acá';
+  entry.textContent = entryText;
   container.appendChild(entry);
 }
 
@@ -169,7 +171,9 @@ function runningAt(res, t) {
   return seg ? seg.id : null;
 }
 
-export function setReadyQueueData({ algo, procs, segments, finish, readyLog, ioMode, resourceLabels, vrrLog }) {
+export function setReadyQueueData({ algo, procs, segments, finish, readyLog, ioMode, resourceLabels, vrrLog, quantum = null, aging = 0 }) {
+  lastQuantum = quantum;
+  lastAging = aging;
   lastAlgo = algo;
   lastProcs = procs;
   lastSegments = segments;
@@ -187,11 +191,7 @@ export function setReadyQueueData({ algo, procs, segments, finish, readyLog, ioM
   if (mlq) {
     const levels = [...new Set(procs.map((p) => p.priority))].sort((a, b) => a - b);
     const labels = lastIoMode ? lastResourceLabels : ['CPU'];
-    makeRow('CPU', HINT_MLQ, { slotCap: 'Ejecutando', res: 0, noQueue: true });
-    levels.forEach((lv, i) => {
-      const items = makeRow(`Prioridad ${lv}`, null, { queueCap: i === 0 ? 'Cola (la más prioritaria)' : i === levels.length - 1 ? 'Cola (la menos prioritaria)' : 'Cola' });
-      items.dataset.level = lv;
-    });
+    buildMlqDiagram(levels);
     labels.slice(1).forEach((label, i) => {
       makeRow(label, hintDevice(label), { slotCap: 'Usando', queueCap: 'Cola de espera', res: i + 1 }).dataset.res = i + 1;
     });
@@ -210,6 +210,67 @@ export function setReadyQueueData({ algo, procs, segments, finish, readyLog, ioM
   } else {
     makeRow('CPU', HINT_CPU, { slotCap: 'Ejecutando', queueCap: 'Cola de listos', res: 0 }).id = 'readyQueueItemsSimple';
   }
+}
+
+function buildMlqDiagram(levels) {
+  const box = document.createElement('div');
+  box.className = lastAging > 0 ? 'mlq-diagram with-aging' : 'mlq-diagram';
+  const title = document.createElement('p');
+  title.className = 'mlq-title';
+  title.textContent = 'Colas de listos (de la más prioritaria a la menos)';
+  const queues = document.createElement('div');
+  queues.className = 'mlq-queues';
+  levels.forEach((lv, i) => {
+    const row = document.createElement('div');
+    row.className = 'mlq-row';
+    row.dataset.level = lv;
+    const side = document.createElement('span');
+    side.className = 'mlq-side';
+    if (lastAging > 0 && i > 0) {
+      side.textContent = `↑ sube si espera ${lastAging} u.`;
+      side.title = `Envejecimiento: cada ${lastAging} unidades esperando en esta cola, el proceso sube a la de arriba. Al conseguir la CPU vuelve a su cola original.`;
+    }
+    const qbox = document.createElement('div');
+    qbox.className = 'mlq-box';
+    const head = document.createElement('div');
+    head.className = 'mlq-box-head';
+    const name = document.createElement('span');
+    name.className = 'mlq-box-name';
+    name.textContent = `Prioridad ${lv}`;
+    const tag = document.createElement('span');
+    tag.className = 'mlq-tag';
+    tag.textContent = `Round Robin · q = ${lastQuantum ?? '?'}`;
+    head.append(name, tag);
+    const items = document.createElement('div');
+    items.className = 'ready-queue-items mlq-items';
+    items.dataset.level = lv;
+    qbox.append(head, items);
+    const out = document.createElement('span');
+    out.className = 'mlq-out';
+    out.setAttribute('aria-hidden', 'true');
+    row.append(side, qbox, out);
+    queues.appendChild(row);
+  });
+  const cpu = document.createElement('div');
+  cpu.className = 'mlq-cpu';
+  const cap = document.createElement('span');
+  cap.className = 'mlq-cpu-name';
+  cap.textContent = 'CPU';
+  const slot = document.createElement('div');
+  slot.className = 'rq-slot-items mlq-slot';
+  slot.dataset.slotRes = 0;
+  const note = document.createElement('span');
+  note.className = 'mlq-cpu-note';
+  note.textContent = 'Si agota el quantum (o lo expropian), vuelve al final de su cola.';
+  cpu.append(cap, slot, note);
+  const grid = document.createElement('div');
+  grid.className = 'mlq-grid';
+  grid.append(queues, cpu);
+  const hint = document.createElement('p');
+  hint.className = 'ready-queue-hint';
+  hint.textContent = HINT_MLQ;
+  box.append(title, grid, hint);
+  wrapEl.appendChild(box);
 }
 
 let shownT = -1;
@@ -234,7 +295,7 @@ function drawReadyQueueAt(t) {
       if (el.dataset.level !== undefined) {
         const ids = levels[el.dataset.level] || [];
         const tasks = ids.map((id) => lastProcs.find((p) => p.id === id)).filter(Boolean);
-        renderChips(el, tasks, 0, t, 'vacía', !nextShown);
+        renderChips(el, tasks, 0, t, 'vacía', !nextShown, 'entran acá →');
         if (tasks.length) nextShown = true;
       } else {
         const res = Number(el.dataset.res);
@@ -243,6 +304,12 @@ function drawReadyQueueAt(t) {
       }
     });
     wrapEl.querySelectorAll('.rq-slot-items').forEach((el) => renderSlot(el, runningAt(Number(el.dataset.slotRes), t)));
+    const run = runningAt(0, t);
+    const runLevel = run != null ? String(lastProcs.find((p) => p.id === run).priority) : null;
+    wrapEl.querySelectorAll('.mlq-row').forEach((row) => {
+      row.classList.toggle('serving', row.dataset.level === runLevel);
+      row.classList.toggle('empty', !(levels[row.dataset.level] || []).length);
+    });
     return;
   }
 

@@ -47,18 +47,23 @@ TAREA "P2"
 INICIO=1 [CPU,4]`;
 
 const DEFAULT_MLQ_TEXT = `RECURSO "R1"
+RECURSO "R2"
+RECURSO "R3"
 
 TAREA "P1"
-INICIO=0 PRIORIDAD=3 [CPU,4] [1,2] [CPU,2]
+INICIO=0 PRIORIDAD=1 [CPU,4] [1,2] [CPU,2] [2,3] [CPU,2] [1,3] [CPU,1]
 
 TAREA "P2"
-INICIO=1 PRIORIDAD=2 [CPU,3]
+INICIO=1 PRIORIDAD=2 [CPU,3] [3,2] [CPU,1] [3,2] [CPU,1]
 
 TAREA "P3"
-INICIO=2 PRIORIDAD=1 [CPU,2] [1,1] [CPU,1]
+INICIO=2 PRIORIDAD=3 [CPU,4] [1,1] [CPU,1]
 
 TAREA "P4"
-INICIO=3 PRIORIDAD=2 [CPU,4]`;
+INICIO=3 PRIORIDAD=2 [CPU,1] [2,2] [CPU,4] [2,3] [CPU,2]
+
+TAREA "P5"
+INICIO=5 PRIORIDAD=1 [CPU,2] [1,3] [CPU,2] [3,3] [CPU,1]`;
 
 let mode = 'simple'; // 'simple' | 'io' | 'mlq'
 let ioTasks = null;
@@ -70,6 +75,7 @@ const MLQ_NAMES = { pri_rr: 'Colas multinivel con apropiación', pri_rr_ne: 'Col
 
 function loadDefaultIo() {
   const parsed = parseDefText(mode === 'mlq' ? DEFAULT_MLQ_TEXT : DEFAULT_IO_TEXT);
+  if (mode === 'mlq') quantumInput.value = '3';
   ioTasks = parsed.tasks;
   ioResourceNames = parsed.resourceNames;
 }
@@ -520,7 +526,8 @@ function runSimulation() {
     readyLog: result.readyLog,
     switches: result.switches,
     quantumTrace: result.quantumTrace,
-    agingLog: result.agingLog
+    agingLog: result.agingLog,
+    aging: cpuOpts.aging
   });
   showComparison({
     ioMode: false,
@@ -582,6 +589,7 @@ function runIoSimulation() {
     switches: result.switches,
     quantumTrace: result.quantumTrace,
     agingLog: result.agingLog,
+    aging: cpuOpts.aging,
     resourceLabels: result.resources,
     resourceAlgo
   });

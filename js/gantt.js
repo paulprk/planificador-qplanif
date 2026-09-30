@@ -397,7 +397,7 @@ function updateViewAvailability(resourceLabels) {
 }
 
 /** Pinta un nuevo resultado de simulación y arranca la reproducción desde el instante 0. */
-export function renderSimulation({ procs, segments, finish, labelText, showPriority, quantumText, algo, readyLog, vrrLog, resourceLabels, resourceAlgo, switches, agingLog, quantumTrace }) {
+export function renderSimulation({ procs, segments, finish, labelText, showPriority, quantumText, algo, readyLog, vrrLog, resourceLabels, resourceAlgo, switches, agingLog, quantumTrace, aging = 0 }) {
   pausePlayback();
   lastSwitches = switches || [];
   lastProcs = procs;
@@ -409,7 +409,7 @@ export function renderSimulation({ procs, segments, finish, labelText, showPrior
   updateViewAvailability(lastResourceLabels);
 
   renderGuide({ procs, segments, resourceLabels: resourceLabels || null, algo, quantumText, resourceAlgo, hasSwitches: lastSwitches.length > 0 });
-  setReadyQueueData({ algo, procs, segments, finish, readyLog, ioMode: Boolean(resourceLabels), resourceLabels, vrrLog });
+  setReadyQueueData({ algo, procs, segments, finish, readyLog, ioMode: Boolean(resourceLabels), resourceLabels, vrrLog, quantum: quantumText ? parseInt(quantumText, 10) : null, aging });
   setNarrationData({
     procs, segments, finish, algo,
     quantum: quantumText ? parseInt(quantumText, 10) : null,
