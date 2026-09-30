@@ -47,6 +47,7 @@ let lastProcs = null;
 let lastSegments = [];
 let lastShowPriority = false;
 let lastQuantumText = null;
+let lastAgingText = null;
 let lastFinish = {};
 let lastSwitches = [];
 let markerEls = [];
@@ -180,6 +181,15 @@ function buildLegend(procs, showPriority, quantumText, isIo) {
     qItem.style.color = 'var(--ink)';
     qItem.textContent = `Quantum = ${quantumText}`;
     legendEl.appendChild(qItem);
+  }
+  if (lastAgingText != null) {
+    const aItem = document.createElement('div');
+    aItem.className = 'legend-item';
+    aItem.style.fontWeight = '700';
+    aItem.style.color = 'var(--ink)';
+    aItem.textContent = `Envejecimiento = cada ${lastAgingText} ${lastAgingText === 1 ? 'unidad' : 'unidades'}`;
+    aItem.title = 'Cada tantas unidades esperando en la cola de listos, el proceso mejora su prioridad (en colas multinivel, sube a la cola de arriba). Al tomar la CPU vuelve a la original.';
+    legendEl.appendChild(aItem);
   }
 
   const brk = document.createElement('div');
@@ -404,6 +414,7 @@ export function renderSimulation({ procs, segments, finish, labelText, showPrior
   lastSegments = segments;
   lastShowPriority = showPriority;
   lastQuantumText = quantumText;
+  lastAgingText = aging > 0 && ['pri', 'pri_exp', 'pri_rr', 'pri_rr_ne'].includes(algo) ? aging : null;
   lastFinish = finish || {};
   lastResourceLabels = resourceLabels || null;
   updateViewAvailability(lastResourceLabels);
