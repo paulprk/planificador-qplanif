@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Planificador de CPU</title>
   <meta name="description" content="Simulador de algoritmos de planificación de CPU (FCFS, SJF, SRTF, Round Robin, Prioridades) con diagrama de Gantt animado.">
-  <link rel="stylesheet" href="css/styles.css?v=25">
+  <link rel="stylesheet" href="css/styles.css?v=26">
   <script>
     try {
       var savedTheme = localStorage.getItem('planificador-cpu-theme');
@@ -142,12 +142,13 @@
           <input type="number" id="pgAddr" min="0" class="num-cell">
         </div>
         <div class="field">
-          <label for="pgAnswer" title="Escribí tu resultado antes de ver la traducción. Si creés que no corresponde, escribí no.">Tu respuesta (opcional)</label>
-          <input type="text" id="pgAnswer" class="num-cell" placeholder="número o no">
+          <label for="pgAnswer" id="pgAnswerLabel">Tu dirección física (opcional)</label>
+          <input type="text" id="pgAnswer" class="num-cell" placeholder="ej: 1880" aria-describedby="pgAnswerHelp">
         </div>
         <button type="button" class="primary" id="pgGo">Traducir</button>
         <span class="pg-addr-msg" id="pgAddrMsg"></span>
       </div>
+      <p class="pg-answer-help" id="pgAnswerHelp">Para autocorregirte: hacé la cuenta vos primero y escribí tu resultado antes de tocar Traducir. Al final de los pasos te dice si está bien. Si te parece que la dirección no corresponde al proceso, escribí <strong>no</strong>. Si no querés corregirte, dejalo vacío.</p>
       <div class="pg-stepper" id="pgStepper" hidden>
         <div class="pg-step-ctl">
           <button type="button" id="pgPrev">◀ Paso anterior</button>

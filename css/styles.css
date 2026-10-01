@@ -1458,10 +1458,13 @@ body[data-mode="paging"] .sched-only { display: none; }
 
 .pg-translator { display: flex; flex-wrap: wrap; gap: 0.8rem 1rem; align-items: flex-end; }
 .pg-translator input { width: 8rem; }
+#pgAnswer { width: 11rem; }
 .pg-dir { display: inline-flex; gap: 2px; padding: 2px; background: var(--surface-2); border-radius: 9px; }
 .pg-dir-btn { background: transparent; color: var(--ink-soft); font-size: 0.8rem; }
 .pg-dir-btn.active { background: var(--surface); color: var(--accent); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08); }
 .pg-addr-msg { font-size: 0.8rem; color: var(--danger); }
+.pg-answer-help { margin: 0.5rem 0 0; font-size: 0.76rem; line-height: 1.45; color: var(--ink-soft); max-width: 75ch; }
+.pg-answer-help strong { color: var(--ink); }
 .pg-addr-msg:empty { display: none; }
 
 .pg-stepper {
