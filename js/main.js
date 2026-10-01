@@ -376,7 +376,8 @@ function moveModeIndicator() {
   const activeBtn = document.querySelector('.mode-btn.active');
   if (!activeBtn || !modeIndicator) return;
   modeIndicator.style.width = `${activeBtn.offsetWidth}px`;
-  modeIndicator.style.transform = `translateX(${activeBtn.offsetLeft}px)`;
+  modeIndicator.style.height = `${activeBtn.offsetHeight}px`;
+  modeIndicator.style.transform = `translate(${activeBtn.offsetLeft}px, ${activeBtn.offsetTop}px)`;
 }
 
 function setMode(newMode) {
@@ -659,4 +660,5 @@ loadDefault();
 initCodePreview();
 updateFieldVisibility();
 moveModeIndicator();
+window.addEventListener('resize', moveModeIndicator);
 runSimulation();

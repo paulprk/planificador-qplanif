@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Planificador de CPU</title>
   <meta name="description" content="Simulador de algoritmos de planificación de CPU (FCFS, SJF, SRTF, Round Robin, Prioridades) con diagrama de Gantt animado.">
-  <link rel="stylesheet" href="css/styles.css?v=23">
+  <link rel="stylesheet" href="css/styles.css?v=24">
   <script>
     try {
       var savedTheme = localStorage.getItem('planificador-cpu-theme');
@@ -76,14 +76,22 @@
       <p class="lede">Cargá un lote de procesos, elegí el algoritmo de scheduling y mirá el diagrama de Gantt resultante junto con la cola de listos, TR, TE, TPR y TPE — pensado como material de estudio para la materia.</p>
     </header>
 
-    <div class="mode-toggle-bar">
-      <span class="mode-toggle-label">Modo</span>
-      <div class="mode-toggle" role="group" aria-label="Modo del lote">
-        <span class="mode-toggle-indicator" id="modeIndicator" aria-hidden="true"></span>
-        <button type="button" class="mode-btn active" data-mode="simple">Modo simple</button>
-        <button type="button" class="mode-btn" data-mode="io">Modo E/S</button>
-        <button type="button" class="mode-btn" data-mode="mlq">Colas multinivel</button>
-        <button type="button" class="mode-btn" data-mode="paging">Paginación</button>
+    <div class="mode-row">
+      <div class="mode-toggle-bar">
+        <span class="mode-toggle-label">Modo</span>
+        <div class="mode-toggle" role="group" aria-label="Modo del lote">
+          <span class="mode-toggle-indicator" id="modeIndicator" aria-hidden="true"></span>
+          <button type="button" class="mode-btn active" data-mode="simple">Modo simple</button>
+          <button type="button" class="mode-btn" data-mode="io">Modo E/S</button>
+          <button type="button" class="mode-btn" data-mode="mlq">Colas multinivel</button>
+          <button type="button" class="mode-btn" data-mode="paging">Paginación</button>
+        </div>
+      </div>
+      <div class="kbd-hint" title="Funcionan en todos los modos: en el planificador mueven el instante; en Paginación, los pasos de la traducción.">
+        <span class="kbd-hint-label">Atajos de teclado</span>
+        <span class="kbd-chip"><kbd>←</kbd> retroceder</span>
+        <span class="kbd-chip"><kbd>Espacio</kbd> pausar / reproducir</span>
+        <span class="kbd-chip"><kbd>→</kbd> avanzar</span>
       </div>
     </div>
 
@@ -241,13 +249,6 @@
       <p style="margin:0;font-size:0.78rem;color:var(--ink-soft)">Prioridad: menor número = mayor prioridad. Se ignora en FCFS, SJF y SRTF.</p>
       <div class="error-msg" id="errMsg"></div>
     </section>
-
-    <div class="kbd-hint sched-only">
-      <span class="kbd-hint-label">Atajos de teclado</span>
-      <span class="kbd-chip"><kbd>←</kbd> retroceder</span>
-      <span class="kbd-chip"><kbd>Espacio</kbd> pausar / reproducir</span>
-      <span class="kbd-chip"><kbd>→</kbd> avanzar</span>
-    </div>
 
     <section class="panel sched-only" id="ganttPanel">
       <h2><span class="num">03</span> Diagrama de Gantt</h2>

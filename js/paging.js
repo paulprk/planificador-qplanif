@@ -516,9 +516,10 @@ export function initPaging() {
   document.addEventListener('keydown', (e) => {
     if (document.body.dataset.mode !== 'paging' || !steps.length) return;
     const tag = (e.target && e.target.tagName || '').toLowerCase();
-    if (['input', 'select', 'textarea'].includes(tag)) return;
+    if (['input', 'select', 'textarea', 'button'].includes(tag)) return;
     if (e.code === 'ArrowLeft') { e.preventDefault(); $('pgPrev').click(); }
     if (e.code === 'ArrowRight') { e.preventDefault(); $('pgNext').click(); }
+    if (e.code === 'Space') { e.preventDefault(); $('pgPlay').click(); }
   });
   window.addEventListener('resize', () => { if (stepIdx >= 0 && steps[stepIdx]) drawLines(steps[stepIdx].hl); });
   loadDefaults();
