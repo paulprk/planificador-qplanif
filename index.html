@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Planificador de CPU</title>
   <meta name="description" content="Simulador de algoritmos de planificación de CPU (FCFS, SJF, SRTF, Round Robin, Prioridades) con diagrama de Gantt animado.">
-  <link rel="stylesheet" href="css/styles.css?v=26">
+  <link rel="stylesheet" href="css/styles.css?v=27">
   <script>
     try {
       var savedTheme = localStorage.getItem('planificador-cpu-theme');
@@ -20,31 +20,10 @@
     <header class="hero">
       <div class="hero-top">
         <span class="eyebrow">Introducción a los Sistemas Operativos · Facultad de Informática, UNLP</span>
-        <div class="theme-picker">
-          <button type="button" class="theme-picker-btn" id="themeBtn" aria-haspopup="true" aria-expanded="false" title="Tema de la página">
-            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <circle cx="12" cy="12" r="4"/>
-              <line x1="12" y1="2.5" x2="12" y2="4.5"/>
-              <line x1="12" y1="19.5" x2="12" y2="21.5"/>
-              <line x1="2.5" y1="12" x2="4.5" y2="12"/>
-              <line x1="19.5" y1="12" x2="21.5" y2="12"/>
-              <line x1="5.11" y1="5.11" x2="6.52" y2="6.52"/>
-              <line x1="17.48" y1="17.48" x2="18.89" y2="18.89"/>
-              <line x1="5.11" y1="18.89" x2="6.52" y2="17.48"/>
-              <line x1="17.48" y1="6.52" x2="18.89" y2="5.11"/>
-            </svg>
-          </button>
-          <div class="theme-menu" id="themeMenu" role="menu" hidden>
-            <button type="button" class="theme-option" role="menuitemradio" data-theme-choice="auto">
-              <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true">
-                <circle cx="12" cy="12" r="7.2" fill="none" stroke="currentColor" stroke-width="1.6"/>
-                <path d="M12 4.8a7.2 7.2 0 000 14.4z" fill="currentColor"/>
-              </svg>
-              <span>Automático</span>
-              <svg class="check" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="4,13 9,18 20,6"/></svg>
-            </button>
-            <button type="button" class="theme-option" role="menuitemradio" data-theme-choice="light">
-              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <div class="hero-actions">
+          <div class="theme-picker">
+            <button type="button" class="theme-picker-btn" id="themeBtn" aria-haspopup="true" aria-expanded="false" title="Tema de la página">
+              <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <circle cx="12" cy="12" r="4"/>
                 <line x1="12" y1="2.5" x2="12" y2="4.5"/>
                 <line x1="12" y1="19.5" x2="12" y2="21.5"/>
@@ -55,21 +34,47 @@
                 <line x1="5.11" y1="18.89" x2="6.52" y2="17.48"/>
                 <line x1="17.48" y1="6.52" x2="18.89" y2="5.11"/>
               </svg>
-              <span>Claro</span>
-              <svg class="check" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="4,13 9,18 20,6"/></svg>
             </button>
-            <button type="button" class="theme-option" role="menuitemradio" data-theme-choice="dark">
-              <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true">
-                <mask id="themeMoonMask">
-                  <rect width="24" height="24" fill="white"/>
-                  <circle cx="15.2" cy="8.6" r="6.4" fill="black"/>
-                </mask>
-                <circle cx="12" cy="12" r="8" fill="currentColor" mask="url(#themeMoonMask)"/>
-              </svg>
-              <span>Oscuro</span>
-              <svg class="check" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="4,13 9,18 20,6"/></svg>
-            </button>
+            <div class="theme-menu" id="themeMenu" role="menu" hidden>
+              <button type="button" class="theme-option" role="menuitemradio" data-theme-choice="auto">
+                <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true">
+                  <circle cx="12" cy="12" r="7.2" fill="none" stroke="currentColor" stroke-width="1.6"/>
+                  <path d="M12 4.8a7.2 7.2 0 000 14.4z" fill="currentColor"/>
+                </svg>
+                <span>Automático</span>
+                <svg class="check" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="4,13 9,18 20,6"/></svg>
+              </button>
+              <button type="button" class="theme-option" role="menuitemradio" data-theme-choice="light">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <circle cx="12" cy="12" r="4"/>
+                  <line x1="12" y1="2.5" x2="12" y2="4.5"/>
+                  <line x1="12" y1="19.5" x2="12" y2="21.5"/>
+                  <line x1="2.5" y1="12" x2="4.5" y2="12"/>
+                  <line x1="19.5" y1="12" x2="21.5" y2="12"/>
+                  <line x1="5.11" y1="5.11" x2="6.52" y2="6.52"/>
+                  <line x1="17.48" y1="17.48" x2="18.89" y2="18.89"/>
+                  <line x1="5.11" y1="18.89" x2="6.52" y2="17.48"/>
+                  <line x1="17.48" y1="6.52" x2="18.89" y2="5.11"/>
+                </svg>
+                <span>Claro</span>
+                <svg class="check" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="4,13 9,18 20,6"/></svg>
+              </button>
+              <button type="button" class="theme-option" role="menuitemradio" data-theme-choice="dark">
+                <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true">
+                  <mask id="themeMoonMask">
+                    <rect width="24" height="24" fill="white"/>
+                    <circle cx="15.2" cy="8.6" r="6.4" fill="black"/>
+                  </mask>
+                  <circle cx="12" cy="12" r="8" fill="currentColor" mask="url(#themeMoonMask)"/>
+                </svg>
+                <span>Oscuro</span>
+                <svg class="check" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="4,13 9,18 20,6"/></svg>
+              </button>
+            </div>
           </div>
+          <a class="theme-picker-btn gh-link" href="https://github.com/paulprk" target="_blank" rel="noopener noreferrer" title="Mi GitHub" aria-label="GitHub de paulprk (se abre en otra pestaña)">
+            <svg viewBox="0 0 16 16" width="17" height="17" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+          </a>
         </div>
       </div>
       <h1>Planificador de CPU <span class="h1-sub">basado en qplanif</span></h1>

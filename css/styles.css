@@ -113,10 +113,21 @@ header.hero {
   text-transform: uppercase;
   color: var(--accent);
 }
+.hero { position: relative; }
+.hero-top { padding-right: 3rem; min-height: 2.05rem; }
+.hero-actions { position: absolute; top: 0; right: 0; display: flex; flex-direction: column; align-items: center; gap: 0.45rem; }
+@media (max-width: 640px) {
+  .hero-top { padding-right: 0; }
+  .hero-actions { position: static; flex-direction: row; }
+}
 .theme-picker {
   position: relative;
   flex-shrink: 0;
+  z-index: 20;
 }
+.gh-link { text-decoration: none; transition: color 150ms, background 150ms; }
+.gh-link:hover { color: var(--ink); }
+.gh-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .theme-picker-btn {
   display: inline-flex;
   align-items: center;
