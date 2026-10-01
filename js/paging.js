@@ -202,10 +202,11 @@ function renderDrawings() {
   FT.appendChild(fh);
   for (let f = 0; f < m.numFrames; f++) {
     const p = m.frameOwner[f];
-    // Varios marcos libres seguidos se dibujan como un solo recuadro (salvo el que se está usando en la traducción).
+    // Los marcos libres del final (después del último ocupado) se dibujan como un solo recuadro, salvo el que se usa en la traducción.
     let to = f;
     if (p == null && f !== expandedFrame) {
       while (to + 1 < m.numFrames && m.frameOwner[to + 1] == null && to + 1 !== expandedFrame) to++;
+      if (to !== m.numFrames - 1) to = f;
     }
     if (to > f) {
       const g = block('pg-frame pg-group', f, null, `Marcos ${f}–${to}`, `${f * m.ps} – ${(to + 1) * m.ps - 1}`, '');
