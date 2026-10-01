@@ -1565,6 +1565,29 @@ body[data-mode="paging"] .sched-only { display: none; }
 .pg-block-owner { font-size: 0.7rem; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pg-block.owned .pg-block-owner { color: var(--ink); }
 .pg-block-range { margin-left: auto; font-family: var(--font-display); font-size: 0.68rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pg-ftrow:not(.pg-colhead) { position: relative; }
+.pg-ftrow:not(.pg-colhead)::before {
+  content: '';
+  position: absolute;
+  right: calc(100% + 0.35rem);
+  top: 50%;
+  width: 1.15rem;
+  height: 2px;
+  margin-top: -1px;
+  background: var(--c, var(--line-strong));
+}
+.pg-ftrow:not(.pg-colhead)::after {
+  content: '';
+  position: absolute;
+  right: calc(100% + 0.2rem);
+  top: 50%;
+  margin-top: -5px;
+  border: 5px solid transparent;
+  border-left: 6px solid var(--c, var(--line-strong));
+  border-right: 0;
+}
+.pg-block.pg-group { border-style: dashed; background: transparent; }
+.pg-trow.pg-group { border-style: dashed; background: transparent; }
 .pg-block.hl { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); transform: scale(1.02); z-index: 1; }
 
 .pg-trow {
@@ -1631,6 +1654,7 @@ body[data-mode="paging"] .sched-only { display: none; }
   .pg-stage { grid-template-columns: minmax(0, 1fr); }
   .pg-trow { grid-template-columns: 3rem 3rem 1fr; }
   .pg-ftrow { grid-template-columns: 3rem 1fr; }
+  .pg-ftrow:not(.pg-colhead)::before, .pg-ftrow:not(.pg-colhead)::after { display: none; }
 }
 @media (prefers-reduced-motion: reduce) {
   .pg-step.current, .pg-result, .pg-mark { animation: none; }

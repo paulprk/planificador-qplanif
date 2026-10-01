@@ -17,6 +17,7 @@ let steps = [];
 let stepIdx = -1;
 let timer = null;
 let direction = 'l2p';
+let expandedFrame = null;
 
 function el(tag, cls, text) {
   const e = document.createElement(tag);
@@ -201,6 +202,21 @@ function renderDrawings() {
   FT.appendChild(fh);
   for (let f = 0; f < m.numFrames; f++) {
     const p = m.frameOwner[f];
+    // Varios marcos libres seguidos se dibujan como un solo recuadro (salvo el que se está usando en la traducción).
+    let to = f;
+    if (p == null && f !== expandedFrame) {
+      while (to + 1 < m.numFrames && m.frameOwner[to + 1] == null && to + 1 !== expandedFrame) to++;
+    }
+    if (to > f) {
+      const g = block('pg-frame pg-group', f, null, `Marcos ${f}–${to}`, `${f * m.ps} – ${(to + 1) * m.ps - 1}`, '');
+      g.title = `Los marcos ${f} a ${to} están libres: se agrupan para no ocupar tanto lugar.`;
+      M.appendChild(g);
+      const r = el('div', 'pg-row pg-trow pg-ftrow pg-group');
+      r.append(el('span', null, `${f}–${to}`), el('span', 'pg-free', `libres (${to - f + 1} marcos)`));
+      FT.appendChild(r);
+      f = to;
+      continue;
+    }
     M.appendChild(block('pg-frame', f, p, `Marco ${f}`, `${f * m.ps} – ${(f + 1) * m.ps - 1}`, p != null ? `pág. ${p}` : 'libre'));
     const r = el('div', 'pg-row pg-trow pg-ftrow');
     r.dataset.idx = f;
@@ -404,6 +420,9 @@ function translate() {
     return;
   }
   steps = buildSteps(direction, a);
+  const target = steps.map((st) => st.hl.frame).find((f) => f != null);
+  expandedFrame = target != null ? target : null;
+  renderDrawings();
   const list = $('pgSteps');
   list.innerHTML = '';
   steps.forEach((s) => {
@@ -426,6 +445,10 @@ function resetTranslation() {
   $('pgStepper').hidden = true;
   $('pgResult').hidden = true;
   clearHighlights();
+  if (expandedFrame != null) {
+    expandedFrame = null;
+    if (model && !model.errors.length) renderDrawings();
+  }
 }
 
 function refresh() {
