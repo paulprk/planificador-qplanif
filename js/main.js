@@ -13,6 +13,7 @@
  */
 import { PRIORITY_ALGOS, ALGO_NAMES, runAlgorithm } from './algorithms.js';
 import { parseDefText, defTextFromIoTasks } from './parser.js';
+import { initPaging } from './paging.js';
 import { loadDefault, readProcesses, addDefaultRow, replaceRows, setPriorityColumnVisible } from './table.js';
 import { initPlayback, renderSimulation } from './gantt.js';
 import { renderResults } from './results.js';
@@ -379,6 +380,15 @@ function moveModeIndicator() {
 }
 
 function setMode(newMode) {
+  document.body.dataset.mode = newMode;
+  if (newMode === 'paging') {
+    if (isIoLike()) lotePorModo[mode] = { tasks: ioTasks, names: ioResourceNames };
+    mode = newMode;
+    document.querySelectorAll('.mode-btn').forEach((b) => b.classList.toggle('active', b.dataset.mode === mode));
+    moveModeIndicator();
+    initPaging();
+    return;
+  }
   if (newMode !== mode) {
     if (isIoLike()) lotePorModo[mode] = { tasks: ioTasks, names: ioResourceNames };
     if (isIoLike(newMode)) {

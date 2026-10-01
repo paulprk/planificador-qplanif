@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Planificador de CPU</title>
   <meta name="description" content="Simulador de algoritmos de planificación de CPU (FCFS, SJF, SRTF, Round Robin, Prioridades) con diagrama de Gantt animado.">
-  <link rel="stylesheet" href="css/styles.css?v=21">
+  <link rel="stylesheet" href="css/styles.css?v=22">
   <script>
     try {
       var savedTheme = localStorage.getItem('planificador-cpu-theme');
@@ -83,10 +83,84 @@
         <button type="button" class="mode-btn active" data-mode="simple">Modo simple</button>
         <button type="button" class="mode-btn" data-mode="io">Modo E/S</button>
         <button type="button" class="mode-btn" data-mode="mlq">Colas multinivel</button>
+        <button type="button" class="mode-btn" data-mode="paging">Paginación</button>
       </div>
     </div>
 
-    <section class="panel">
+
+    <section class="panel paging-only" id="pagingPanel">
+      <h2><span class="num">01</span> Datos de la paginación</h2>
+      <p class="pg-intro">Cargá los datos del enunciado. Si alguno no se da (por ejemplo, el tamaño de la memoria o del proceso), dejalo vacío.</p>
+      <div class="pg-form">
+        <div class="field">
+          <label for="pgPageSize">Tamaño de página</label>
+          <div class="pg-unit"><input type="number" id="pgPageSize" min="1" class="num-cell"><select id="pgPageUnit" aria-label="Unidad del tamaño de página"><option value="B">bytes</option><option value="KiB">KiB</option></select></div>
+        </div>
+        <div class="field">
+          <label for="pgMemSize">Memoria principal</label>
+          <div class="pg-unit"><input type="number" id="pgMemSize" min="1" class="num-cell" placeholder="no se sabe"><select id="pgMemUnit" aria-label="Unidad de la memoria"><option value="B">bytes</option><option value="KiB">KiB</option></select></div>
+        </div>
+        <div class="field">
+          <label for="pgProcSize">Tamaño lógico del proceso</label>
+          <div class="pg-unit"><input type="number" id="pgProcSize" min="1" class="num-cell" placeholder="no se sabe"><select id="pgProcUnit" aria-label="Unidad del tamaño del proceso"><option value="B">bytes</option><option value="KiB">KiB</option></select></div>
+        </div>
+        <div class="field">
+          <label for="pgName">Proceso</label>
+          <input type="text" id="pgName" class="name-cell" maxlength="12">
+        </div>
+      </div>
+      <div class="pg-te">
+        <span class="pg-te-title">Tabla de páginas</span>
+        <div class="pg-te-rows" id="pgTableEditor"></div>
+        <div class="pg-te-actions">
+          <button type="button" id="pgAddPage">+ Agregar página</button>
+          <button type="button" id="pgDelPage">− Quitar la última</button>
+          <button type="button" id="pgReset">Restaurar ejemplo</button>
+        </div>
+      </div>
+      <div class="pg-msgs" id="pgMsgs"></div>
+      <div class="pg-summary" id="pgSummary"></div>
+    </section>
+
+    <section class="panel paging-only" id="pgDrawPanel">
+      <h2><span class="num">02</span> Memoria y traducción de direcciones</h2>
+      <div class="pg-translator">
+        <div class="pg-dir" role="group" aria-label="Sentido de la traducción">
+          <button type="button" class="pg-dir-btn active" data-dir="l2p">Lógica → física</button>
+          <button type="button" class="pg-dir-btn" data-dir="p2l">Física → lógica</button>
+        </div>
+        <div class="field">
+          <label for="pgAddr" id="pgAddrLabel">Dirección lógica</label>
+          <input type="number" id="pgAddr" min="0" class="num-cell">
+        </div>
+        <div class="field">
+          <label for="pgAnswer" title="Escribí tu resultado antes de ver la traducción. Si creés que no corresponde, escribí no.">Tu respuesta (opcional)</label>
+          <input type="text" id="pgAnswer" class="num-cell" placeholder="número o no">
+        </div>
+        <button type="button" class="primary" id="pgGo">Traducir</button>
+        <span class="pg-addr-msg" id="pgAddrMsg"></span>
+      </div>
+      <div class="pg-stepper" id="pgStepper" hidden>
+        <div class="pg-step-ctl">
+          <button type="button" id="pgPrev">◀ Paso anterior</button>
+          <button type="button" id="pgPlay">▶ Reproducir pasos</button>
+          <button type="button" id="pgNext">Paso siguiente ▶</button>
+          <span class="pg-step-count" id="pgStepCount"></span>
+        </div>
+        <ol class="pg-steps" id="pgSteps"></ol>
+        <div class="pg-result" id="pgResult" hidden></div>
+      </div>
+      <div class="pg-stage" id="pgStage">
+        <div class="pg-col"><h3 id="pgLogicalTitle">Espacio de direcciones</h3><div id="pgLogical"></div></div>
+        <div class="pg-col"><h3>Tabla de páginas</h3><div id="pgPageTable"></div></div>
+        <div class="pg-col pg-col-mem"><h3>Memoria principal</h3><div id="pgMemory"></div></div>
+        <div class="pg-col"><h3>Tabla de marcos</h3><div id="pgFrameTable"></div></div>
+        <svg class="pg-lines" id="pgLines" aria-hidden="true"></svg>
+      </div>
+      <p class="pg-legend">Cada página tiene su color, y su marco en memoria se pinta igual. El rayado es la parte de la última página que el proceso no usa (fragmentación interna). Durante la traducción se resalta lo que se está usando en cada paso.</p>
+    </section>
+
+    <section class="panel sched-only">
       <h2><span class="num">01</span> Lote de procesos</h2>
       <table class="proc-table" id="procTable">
         <thead>
@@ -125,7 +199,7 @@
       </div>
     </section>
 
-    <section class="panel">
+    <section class="panel sched-only">
       <h2><span class="num">02</span> Algoritmo</h2>
       <div class="controls-row">
         <div class="field">
@@ -168,14 +242,14 @@
       <div class="error-msg" id="errMsg"></div>
     </section>
 
-    <div class="kbd-hint">
+    <div class="kbd-hint sched-only">
       <span class="kbd-hint-label">Atajos de teclado</span>
       <span class="kbd-chip"><kbd>←</kbd> retroceder</span>
       <span class="kbd-chip"><kbd>Espacio</kbd> pausar / reproducir</span>
       <span class="kbd-chip"><kbd>→</kbd> avanzar</span>
     </div>
 
-    <section class="panel" id="ganttPanel">
+    <section class="panel sched-only" id="ganttPanel">
       <h2><span class="num">03</span> Diagrama de Gantt</h2>
       <div class="playback-row">
         <button id="stepStart" type="button" title="Ir al instante 0">|◀</button>
@@ -245,7 +319,7 @@
       </div>
     </section>
 
-    <section class="panel" id="resultsPanel">
+    <section class="panel sched-only" id="resultsPanel">
       <h2><span class="num">04</span> TR, TE y promedios</h2>
       <div class="stats-grid" id="statsGrid"></div>
       <div class="table-scroll">
@@ -256,7 +330,7 @@
       </div>
     </section>
 
-    <section class="panel" id="comparePanel">
+    <section class="panel sched-only" id="comparePanel">
       <h2><span class="num">05</span> Comparar políticas</h2>
       <p class="cmp-lede">El mismo lote corrido con todos los algoritmos, para ver cuál conviene según lo que te importe. En verde el mejor valor de TPR, TPE y tiempo total. Con <strong>Ver</strong> se carga esa política en el diagrama de Gantt.</p>
       <div class="controls-row">

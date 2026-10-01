@@ -473,6 +473,7 @@ export function initPlayback() {
 
   document.addEventListener('keydown', (e) => {
     if (!['Space', 'ArrowLeft', 'ArrowRight'].includes(e.code)) return;
+    if (document.body.dataset.mode === 'paging') return;
     const tag = (e.target && e.target.tagName || '').toLowerCase();
     if (['input', 'select', 'textarea', 'button'].includes(tag)) return;
     e.preventDefault();
