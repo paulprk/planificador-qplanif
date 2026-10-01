@@ -13,7 +13,8 @@
  */
 import { PRIORITY_ALGOS, ALGO_NAMES, runAlgorithm } from './algorithms.js';
 import { parseDefText, defTextFromIoTasks } from './parser.js';
-import { initPaging } from './paging.js';
+import { initPaging, getPagingState, setPagingState } from './paging.js';
+import { encodeShare, decodeShare, shareLink, MODE_LABEL } from './share.js';
 import { loadDefault, readProcesses, addDefaultRow, replaceRows, setPriorityColumnVisible } from './table.js';
 import { initPlayback, renderSimulation } from './gantt.js';
 import { renderResults } from './results.js';
@@ -380,7 +381,7 @@ function moveModeIndicator() {
   modeIndicator.style.transform = `translate(${activeBtn.offsetLeft}px, ${activeBtn.offsetTop}px)`;
 }
 
-function setMode(newMode) {
+function setMode(newMode, { keepLote = false } = {}) {
   document.body.dataset.mode = newMode;
   if (newMode === 'paging') {
     if (isIoLike()) lotePorModo[mode] = { tasks: ioTasks, names: ioResourceNames };
@@ -392,7 +393,7 @@ function setMode(newMode) {
   }
   if (newMode !== mode) {
     if (isIoLike()) lotePorModo[mode] = { tasks: ioTasks, names: ioResourceNames };
-    if (isIoLike(newMode)) {
+    if (isIoLike(newMode) && !keepLote) {
       const saved = lotePorModo[newMode];
       ioTasks = saved ? saved.tasks : null;
       ioResourceNames = saved ? saved.names : [];
@@ -466,7 +467,7 @@ document.getElementById('loadCode').addEventListener('click', () => {
   if (usable.some((t) => t.usesResources) || mode === 'mlq') {
     ioTasks = usable;
     ioResourceNames = resourceNames;
-    setMode(mode === 'mlq' ? 'mlq' : 'io');
+    setMode(mode === 'mlq' ? 'mlq' : 'io', { keepLote: true });
     msg.textContent = `Cargadas ${usable.length} tarea(s) con ${resourceNames.length} recurso(s) de E/S.`;
     msg.className = 'code-msg';
   } else {
@@ -654,6 +655,127 @@ cmpQuantums.addEventListener('change', refreshComparison);
 document.getElementById('simBtn').addEventListener('click', runSimulation);
 resourceAlgoSel.addEventListener('change', () => { if (isIoLike()) runSimulation(); });
 
+// --- Compartir ---
+const shareCodeEl = document.getElementById('shareCode');
+const shareInputEl = document.getElementById('shareInput');
+const shareMsgEl = document.getElementById('shareMsg');
+let toastTimer = null;
+
+function showToast(text, kind = 'ok') {
+  const t = document.getElementById('toast');
+  t.textContent = text;
+  t.className = `toast ${kind}`;
+  t.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.hidden = true; }, 4500);
+}
+
+function shareMsg(text, kind = 'ok') {
+  shareMsgEl.textContent = text;
+  shareMsgEl.className = `share-msg ${kind}`;
+}
+
+function shareData() {
+  if (mode === 'paging') return getPagingState();
+  const opts = { a: algoSel.value, q: quantumInput.value, cs: ctxInput.value, ag: agingInput.value };
+  if (isIoLike()) return { ...opts, ra: resourceAlgoSel.value, d: defTextFromIoTasks(ioTasks || [], ioResourceNames) };
+  return { ...opts, p: readProcesses().map((p) => [p.name, p.arrival, p.burst, p.priority]) };
+}
+
+function applyOptions(d) {
+  const num = (v, min) => (Number.isFinite(Number(v)) && Number(v) >= min ? String(Math.floor(Number(v))) : null);
+  if (num(d.q, 1)) quantumInput.value = num(d.q, 1);
+  if (num(d.cs, 0)) ctxInput.value = num(d.cs, 0);
+  if (num(d.ag, 0)) agingInput.value = num(d.ag, 0);
+  if (d.ra && [...resourceAlgoSel.options].some((o) => o.value === d.ra)) resourceAlgoSel.value = d.ra;
+  const opt = [...algoSel.options].find((o) => o.value === d.a);
+  if (opt && !opt.disabled) algoSel.value = d.a;
+  updateFieldVisibility();
+  runSimulation();
+}
+
+function applyShare(target, d) {
+  if (target === 'paging') {
+    setMode('paging');
+    setPagingState(d || {});
+    return true;
+  }
+  if (target === 'simple') {
+    const rows = (Array.isArray(d.p) ? d.p : []).slice(0, 50).map(([name, arrival, burst, priority]) => ({
+      name: String(name ?? '').slice(0, 20), arrival: Number(arrival) || 0, burst: Number(burst) || 1, priority: Number(priority) || 0
+    }));
+    if (!rows.length) return false;
+    replaceRows(rows);
+    setMode('simple');
+  } else {
+    const { tasks, resourceNames } = parseDefText(String(d.d || ''));
+    const usable = tasks.filter((t) => t.hasCpu && t.bursts.some((b) => b.res === 0 && b.dur > 0));
+    if (!usable.length) return false;
+    ioTasks = usable;
+    ioResourceNames = resourceNames;
+    setMode(target, { keepLote: true });
+  }
+  applyOptions(d);
+  return true;
+}
+
+async function loadShared(raw, { fromLink = false } = {}) {
+  const res = await decodeShare(raw);
+  if (res.error) {
+    shareMsg(res.error, 'err');
+    if (fromLink) showToast(`No se pudo cargar el link: ${res.error}`, 'err');
+    return;
+  }
+  if (!applyShare(res.mode, res.data || {})) {
+    shareMsg('El código no tiene datos que se puedan cargar.', 'err');
+    return;
+  }
+  const text = `Se cargó el código: corresponde a ${MODE_LABEL[res.mode]}.`;
+  shareMsg(text, 'ok');
+  showToast(text, 'ok');
+  if (!fromLink) window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+async function copyText(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch (e) {
+    shareCodeEl.value = text;
+    shareCodeEl.select();
+    try { return document.execCommand('copy'); } catch (e2) { return false; }
+  }
+}
+
+async function makeCode() {
+  const code = await encodeShare(mode, shareData());
+  shareCodeEl.value = code;
+  return code;
+}
+
+document.getElementById('shareCopy').addEventListener('click', async () => {
+  const code = await makeCode();
+  const ok = await copyText(code);
+  shareMsg(ok ? `Código copiado (${MODE_LABEL[mode]}). Pegalo donde quieras compartirlo.` : 'No pude copiar solo: seleccioná el código y copialo a mano.', ok ? 'ok' : 'warn');
+});
+document.getElementById('shareCopyLink').addEventListener('click', async () => {
+  const link = shareLink(await makeCode());
+  const ok = await copyText(link);
+  if (!ok) shareCodeEl.value = link;
+  shareMsg(ok ? 'Link copiado: quien lo abra ve el ejercicio ya cargado.' : 'No pude copiar solo: seleccioná el link y copialo a mano.', ok ? 'ok' : 'warn');
+});
+document.getElementById('sharePaste').addEventListener('click', async () => {
+  try {
+    const text = await navigator.clipboard.readText();
+    shareInputEl.value = text;
+    loadShared(text);
+  } catch (e) {
+    shareInputEl.focus();
+    shareMsg('El navegador no dejó leer el portapapeles: pegá el código en el recuadro (Cmd+V) y tocá Cargar código.', 'warn');
+  }
+});
+document.getElementById('shareLoad').addEventListener('click', () => loadShared(shareInputEl.value));
+
 // --- Arranque ---
 initPlayback();
 loadDefault();
@@ -662,3 +784,10 @@ updateFieldVisibility();
 moveModeIndicator();
 window.addEventListener('resize', moveModeIndicator);
 runSimulation();
+
+const sharedParam = new URLSearchParams(location.search).get('c');
+if (sharedParam) {
+  loadShared(sharedParam, { fromLink: true }).then(() => {
+    history.replaceState(null, '', location.pathname + location.hash);
+  });
+}

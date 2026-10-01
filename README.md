@@ -24,6 +24,7 @@ Simulador web de algoritmos de planificación de CPU, inspirado en [qplanif](htt
 - Costo de cambio de contexto opcional: el SO tarda N unidades en cargar a un proceso distinto del último que usó la CPU (se ve como bloque rayado en el Gantt, no cuenta como uso de CPU y el proceso elegido sigue esperando).
 - Envejecimiento (aging) opcional en prioridades: cada N unidades en la cola de listos sube la prioridad del proceso, que vuelve a la base cuando toma la CPU.
 - Calcula automáticamente TR, TE por proceso y TPR/TPE del lote.
+- **Compartir**: al final de la página, "Copiar código" (o "Copiar link") guarda todo lo cargado en el modo actual dentro de un código `PQ1.…`. Al pegarlo en "Cargar código" (o abrir el link) se carga lo mismo y el simulador pasa al modo que corresponde. Los datos viajan comprimidos dentro del código: no hay servidor.
 - Carga de procesos por código, con el mismo formato `.def` de qplanif:
   ```
   TAREA "1" INICIO=0 PRIORIDAD=2 [CPU,7]

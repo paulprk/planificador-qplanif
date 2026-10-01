@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Planificador de CPU</title>
   <meta name="description" content="Simulador de algoritmos de planificación de CPU (FCFS, SJF, SRTF, Round Robin, Prioridades) con diagrama de Gantt animado.">
-  <link rel="stylesheet" href="css/styles.css?v=24">
+  <link rel="stylesheet" href="css/styles.css?v=25">
   <script>
     try {
       var savedTheme = localStorage.getItem('planificador-cpu-theme');
@@ -348,7 +348,34 @@
       </div>
       <p class="cmp-note">Cambios de contexto = veces que la CPU pasa de un proceso a otro distinto. Con menos cambios hay menos costo real de conmutación, aunque acá se lo simula sin costo.</p>
     </section>
+
+    <section class="panel" id="sharePanel">
+      <h2>Compartir el ejercicio</h2>
+      <p class="share-intro">El código guarda todo lo que cargaste en el modo actual (procesos, algoritmo, quantum, opciones o los datos de paginación). Pasáselo a alguien: al pegarlo se le carga lo mismo y el simulador lo lleva al modo que corresponde.</p>
+      <div class="share-grid">
+        <div class="share-box">
+          <label for="shareCode">Tu código</label>
+          <textarea id="shareCode" rows="3" readonly placeholder="Tocá Copiar código y aparece acá."></textarea>
+          <div class="share-actions">
+            <button type="button" class="primary" id="shareCopy">Copiar código</button>
+            <button type="button" id="shareCopyLink">Copiar link</button>
+          </div>
+        </div>
+        <div class="share-box">
+          <label for="shareInput">Código que te pasaron</label>
+          <textarea id="shareInput" rows="3" placeholder="Pegá acá un código (PQ1…) o un link del simulador."></textarea>
+          <div class="share-actions">
+            <button type="button" id="sharePaste">Pegar</button>
+            <button type="button" class="primary" id="shareLoad">Cargar código</button>
+          </div>
+        </div>
+      </div>
+      <p class="share-msg" id="shareMsg" role="status"></p>
+    </section>
+
   </div>
+
+  <div class="toast" id="toast" role="status" hidden></div>
 
   <div class="info-popover" id="infoPopover" role="tooltip" hidden>
     <div class="info-popover-title" id="infoPopoverTitle"></div>

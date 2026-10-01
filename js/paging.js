@@ -524,3 +524,29 @@ export function initPaging() {
   window.addEventListener('resize', () => { if (stepIdx >= 0 && steps[stepIdx]) drawLines(steps[stepIdx].hl); });
   loadDefaults();
 }
+
+/** Datos cargados en Paginación, tal como están en el formulario (para el código para compartir). */
+export function getPagingState() {
+  return {
+    ps: $('pgPageSize').value, pu: $('pgPageUnit').value,
+    ms: $('pgMemSize').value, mu: $('pgMemUnit').value,
+    s: $('pgProcSize').value, su: $('pgProcUnit').value,
+    n: $('pgName').value,
+    t: [...document.querySelectorAll('#pgTableEditor input')].map((i) => i.value)
+  };
+}
+
+export function setPagingState(st) {
+  initPaging();
+  const unit = (u) => (u === 'KiB' ? 'KiB' : 'B');
+  $('pgPageSize').value = st.ps ?? '';
+  $('pgPageUnit').value = unit(st.pu);
+  $('pgMemSize').value = st.ms ?? '';
+  $('pgMemUnit').value = unit(st.mu);
+  $('pgProcSize').value = st.s ?? '';
+  $('pgProcUnit').value = unit(st.su);
+  $('pgName').value = st.n || 'P1';
+  const t = Array.isArray(st.t) && st.t.length ? st.t.slice(0, MAX_ROWS).map((v) => (v === '' || v == null ? null : Number(v))) : [null];
+  renderTableEditor(t);
+  refresh();
+}
