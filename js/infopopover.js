@@ -8,6 +8,10 @@
  * Los botones "ⓘ" pueden estar dentro de contenido que se vuelve a dibujar
  * en cada simulación (las fichas TPR/TPE), así que los clics se escuchan
  * por delegación en `document` en vez de engancharse a cada botón puntual.
+ *
+ * El mismo popover muestra, en pantallas táctiles, la descripción de los
+ * elementos con clase `has-tip` (los bloques y marcas del Gantt): ahí el
+ * `title` no aparece porque no hay mouse, así que se abre al tocarlos.
  */
 const CONTENT = {
   tr: {
@@ -95,10 +99,17 @@ function positionAround(trigger) {
   popover.style.setProperty('--info-origin-y', openAbove ? '100%' : '0%');
 }
 
+function contentFor(trigger) {
+  if (trigger.dataset.infoKey) return CONTENT[trigger.dataset.infoKey];
+  const text = trigger.getAttribute('title');
+  return text ? { title: '', body: text, formula: '' } : null;
+}
+
 function fillContent(btn) {
-  const data = CONTENT[btn.dataset.infoKey];
+  const data = contentFor(btn);
   if (!data) return false;
   titleEl.textContent = data.title;
+  titleEl.hidden = !data.title;
   bodyEl.innerHTML = '';
   bodyEl.append(document.createTextNode(data.body));
   if (data.formula) {
@@ -135,8 +146,12 @@ function close() {
   setTimeout(() => { if (!activeBtn) popover.hidden = true; }, 160);
 }
 
+// Con mouse el `title` ya se ve al pasar por encima: los `has-tip` solo se abren con dedo o lápiz.
+let lastPointerType = 'mouse';
+document.addEventListener('pointerdown', (e) => { lastPointerType = e.pointerType; }, true);
+
 document.addEventListener('click', (e) => {
-  const btn = e.target.closest('.info-btn');
+  const btn = e.target.closest('.info-btn') || (lastPointerType !== 'mouse' ? e.target.closest('.has-tip') : null);
   if (btn) {
     e.stopPropagation();
     if (activeBtn === btn) close();
@@ -151,5 +166,9 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && activeBtn) { const b = activeBtn; close(); b.focus(); }
 });
 
-window.addEventListener('resize', () => { if (activeBtn) positionAround(activeBtn); });
+window.addEventListener('resize', () => {
+  if (!activeBtn) return;
+  if (activeBtn.isConnected) positionAround(activeBtn);
+  else close(); // el Gantt se redibuja al cambiar el ancho y el bloque tocado ya no existe
+});
 window.addEventListener('scroll', () => { if (activeBtn) close(); }, true);

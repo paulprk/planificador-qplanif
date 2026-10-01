@@ -5,22 +5,13 @@
  * E/S hay una fila por cada recurso (CPU + cada dispositivo declarado),
  * porque cada uno tiene su propia cola independiente.
  */
-import { ioReadyQueueAt, ioAuxCountAt, ioLevelsAt } from './iosim.js';
+import { ioReadyQueueAt, ioAuxCountAt, ioLevelsAt, MLQ_ALGOS } from './iosim.js';
 import { colorFor } from './colors.js';
 import { flipRender, resetFlip, forgetKeys } from './flip.js';
 
 const wrapEl = document.getElementById('readyQueueWrap');
 
-let lastAlgo = null;
-let lastProcs = null;
-let lastSegments = [];
-let lastFinish = {};
-let lastReadyLog = null;
-let lastIoMode = false;
-let lastResourceLabels = null;
-let lastVrrLog = null;
-let lastQuantum = null;
-let lastAging = 0;
+let sim = null; // la simulación en pantalla: el mismo objeto que arma gantt.js en renderSimulation
 
 function makeRow(label, hint, opts = {}) {
   const row = document.createElement('div');
@@ -82,9 +73,9 @@ const HINT_MLQ = 'Cada proceso entra por la izquierda de la cola de su prioridad
 const hintDevice = (label) => `A la izquierda, el proceso que está usando el dispositivo ${label}. A la derecha, los que esperan que se libere, en el orden en que se atenderán: el 1 ("próximo") es el siguiente.`;
 
 function restoAt(id, t) {
-  if (!lastVrrLog) return null;
+  if (!sim.vrrLog) return null;
   let r = null;
-  for (const e of lastVrrLog.aux) {
+  for (const e of sim.vrrLog.aux) {
     if (e.t > t) break;
     if (e.id === id) r = e.resto;
   }
@@ -102,7 +93,7 @@ function renderChips(container, tasks, auxCount = 0, t = 0, emptyText = 'nadie e
     return;
   }
   tasks.forEach((p, i) => {
-    const colorKey = colorFor(lastProcs, p.id);
+    const colorKey = colorFor(sim.procs, p.id);
     const chip = document.createElement('span');
     chip.className = 'ready-chip' + (i < auxCount ? ' aux' : '');
     chip.dataset.pid = p.id;
@@ -147,7 +138,7 @@ function renderChips(container, tasks, auxCount = 0, t = 0, emptyText = 'nadie e
 
 function renderSlot(container, id) {
   container.innerHTML = '';
-  const p = id != null ? lastProcs.find((x) => x.id === id) : null;
+  const p = id != null ? procById(id) : null;
   if (!p) {
     const empty = document.createElement('span');
     empty.className = 'ready-queue-empty';
@@ -156,7 +147,7 @@ function renderSlot(container, id) {
     container.appendChild(empty);
     return;
   }
-  const colorKey = colorFor(lastProcs, p.id);
+  const colorKey = colorFor(sim.procs, p.id);
   const chip = document.createElement('span');
   chip.className = 'ready-chip running';
   chip.dataset.pid = p.id;
@@ -167,30 +158,26 @@ function renderSlot(container, id) {
 }
 
 function runningAt(res, t) {
-  const seg = lastSegments.find((s) => (s.res || 0) === res && s.start <= t && t < s.end);
+  const seg = sim.segments.find((s) => (s.res || 0) === res && s.start <= t && t < s.end);
   return seg ? seg.id : null;
 }
 
-export function setReadyQueueData({ algo, procs, segments, finish, readyLog, ioMode, resourceLabels, vrrLog, quantum = null, aging = 0 }) {
-  lastQuantum = quantum;
-  lastAging = aging;
-  lastAlgo = algo;
-  lastProcs = procs;
-  lastSegments = segments;
-  lastFinish = finish;
-  lastReadyLog = readyLog ?? null;
-  lastIoMode = Boolean(ioMode);
-  lastResourceLabels = resourceLabels || null;
-  lastVrrLog = vrrLog || null;
+const procById = (id) => sim.procs.find((p) => p.id === id);
+const procsOf = (ids) => ids.map(procById).filter(Boolean);
+const isMlq = () => MLQ_ALGOS.includes(sim.algo);
+
+/** Arma las filas (vacías) de la cola de listos para una simulación nueva; `renderReadyQueueAt` las llena. */
+export function setReadyQueueData(simulation) {
+  sim = simulation;
   resetFlip();
 
   wrapEl.innerHTML = '';
-  if (!procs) return;
+  if (!sim.procs) return;
 
-  const mlq = algo === 'pri_rr' || algo === 'pri_rr_ne';
-  if (mlq) {
+  const { algo, procs } = sim;
+  if (isMlq()) {
     const levels = [...new Set(procs.map((p) => p.priority))].sort((a, b) => a - b);
-    const labels = lastIoMode ? lastResourceLabels : ['CPU'];
+    const labels = sim.ioMode ? sim.resourceLabels : ['CPU'];
     buildMlqDiagram(levels);
     labels.slice(1).forEach((label, i) => {
       makeRow(label, hintDevice(label), { slotCap: 'Usando', queueCap: 'Cola de espera', res: i + 1 }).dataset.res = i + 1;
@@ -198,9 +185,9 @@ export function setReadyQueueData({ algo, procs, segments, finish, readyLog, ioM
     return;
   }
 
-  if (lastIoMode) {
+  if (sim.ioMode) {
     const vrr = algo === 'vrr';
-    lastResourceLabels.forEach((label, res) => {
+    sim.resourceLabels.forEach((label, res) => {
       if (res === 0 && vrr) {
         makeRow('Cola auxiliar (VRR)', HINT_AUX, { queueCap: 'Cola de espera' }).dataset.res = 'aux';
       }
@@ -213,8 +200,9 @@ export function setReadyQueueData({ algo, procs, segments, finish, readyLog, ioM
 }
 
 function buildMlqDiagram(levels) {
+  const { aging, quantum } = sim;
   const box = document.createElement('div');
-  box.className = lastAging > 0 ? 'mlq-diagram with-aging' : 'mlq-diagram';
+  box.className = aging > 0 ? 'mlq-diagram with-aging' : 'mlq-diagram';
   const title = document.createElement('p');
   title.className = 'mlq-title';
   title.textContent = 'Colas de listos (de la más prioritaria a la menos)';
@@ -226,9 +214,9 @@ function buildMlqDiagram(levels) {
     row.dataset.level = lv;
     const side = document.createElement('span');
     side.className = 'mlq-side';
-    if (lastAging > 0 && i > 0) {
-      side.textContent = `↑ sube si espera ${lastAging} u.`;
-      side.title = `Envejecimiento: cada ${lastAging} unidades esperando en esta cola, el proceso sube a la de arriba. Al conseguir la CPU vuelve a su cola original.`;
+    if (aging > 0 && i > 0) {
+      side.textContent = `↑ sube si espera ${aging} u.`;
+      side.title = `Envejecimiento: cada ${aging} unidades esperando en esta cola, el proceso sube a la de arriba. Al conseguir la CPU vuelve a su cola original.`;
     }
     const qbox = document.createElement('div');
     qbox.className = 'mlq-box';
@@ -239,7 +227,7 @@ function buildMlqDiagram(levels) {
     name.textContent = `Prioridad ${lv}`;
     const tag = document.createElement('span');
     tag.className = 'mlq-tag';
-    tag.textContent = `Round Robin · q = ${lastQuantum ?? '?'}`;
+    tag.textContent = `Round Robin · q = ${quantum ?? '?'}`;
     head.append(name, tag);
     const items = document.createElement('div');
     items.className = 'ready-queue-items mlq-items';
@@ -276,7 +264,7 @@ function buildMlqDiagram(levels) {
 let shownT = -1;
 
 export function renderReadyQueueAt(t) {
-  if (!lastProcs) return;
+  if (!sim || !sim.procs) return;
   shownT = t;
   flipRender([wrapEl], () => drawReadyQueueAt(t), t, 'ready', document.getElementById('narrationEvents'), 'delay');
 }
@@ -288,24 +276,24 @@ window.addEventListener('narration-start-replay', () => {
 });
 
 function drawReadyQueueAt(t) {
-  if (lastAlgo === 'pri_rr' || lastAlgo === 'pri_rr_ne') {
-    const levels = ioLevelsAt(lastReadyLog, t);
+  const { readyLog } = sim;
+  const fillSlots = () => wrapEl.querySelectorAll('.rq-slot-items').forEach((el) => renderSlot(el, runningAt(Number(el.dataset.slotRes), t)));
+
+  if (isMlq()) {
+    const levels = ioLevelsAt(readyLog, t);
     let nextShown = false;
     wrapEl.querySelectorAll('.ready-queue-items').forEach((el) => {
       if (el.dataset.level !== undefined) {
-        const ids = levels[el.dataset.level] || [];
-        const tasks = ids.map((id) => lastProcs.find((p) => p.id === id)).filter(Boolean);
+        const tasks = procsOf(levels[el.dataset.level] || []);
         renderChips(el, tasks, 0, t, 'vacía', !nextShown, 'entran acá →');
         if (tasks.length) nextShown = true;
       } else {
-        const res = Number(el.dataset.res);
-        const tasks = ioReadyQueueAt(lastReadyLog, res, t).map((id) => lastProcs.find((p) => p.id === id)).filter(Boolean);
-        renderChips(el, tasks, 0, t, 'nadie espera');
+        renderChips(el, procsOf(ioReadyQueueAt(readyLog, Number(el.dataset.res), t)), 0, t, 'nadie espera');
       }
     });
-    wrapEl.querySelectorAll('.rq-slot-items').forEach((el) => renderSlot(el, runningAt(Number(el.dataset.slotRes), t)));
+    fillSlots();
     const run = runningAt(0, t);
-    const runLevel = run != null ? String(lastProcs.find((p) => p.id === run).priority) : null;
+    const runLevel = run != null ? String(procById(run).priority) : null;
     wrapEl.querySelectorAll('.mlq-row').forEach((row) => {
       row.classList.toggle('serving', row.dataset.level === runLevel);
       row.classList.toggle('empty', !(levels[row.dataset.level] || []).length);
@@ -313,25 +301,23 @@ function drawReadyQueueAt(t) {
     return;
   }
 
-  if (lastIoMode) {
-    const vrr = lastAlgo === 'vrr';
-    const auxCount = vrr ? ioAuxCountAt(lastReadyLog, t) : 0;
+  if (sim.ioMode) {
+    const vrr = sim.algo === 'vrr';
+    const auxCount = vrr ? ioAuxCountAt(readyLog, t) : 0;
     wrapEl.querySelectorAll('.ready-queue-items').forEach((el) => {
       const isAux = el.dataset.res === 'aux';
       const res = isAux ? 0 : Number(el.dataset.res);
-      const ids = ioReadyQueueAt(lastReadyLog, res, t);
-      const tasks = ids.map((id) => lastProcs.find((p) => p.id === id)).filter(Boolean);
+      const tasks = procsOf(ioReadyQueueAt(readyLog, res, t));
       if (isAux) renderChips(el, tasks.slice(0, auxCount), auxCount, t, 'vacía: nadie volvió de E/S con quantum pendiente');
       else if (res === 0 && vrr) renderChips(el, tasks.slice(auxCount), 0, t, 'nadie espera', auxCount === 0);
       else renderChips(el, tasks);
     });
-    wrapEl.querySelectorAll('.rq-slot-items').forEach((el) => renderSlot(el, runningAt(Number(el.dataset.slotRes), t)));
+    fillSlots();
     return;
   }
 
   const items = document.getElementById('readyQueueItemsSimple');
   if (!items) return;
-  const ids = ioReadyQueueAt(lastReadyLog, 0, t);
-  renderChips(items, ids.map((id) => lastProcs.find((p) => p.id === id)).filter(Boolean));
-  wrapEl.querySelectorAll('.rq-slot-items').forEach((el) => renderSlot(el, runningAt(0, t)));
+  renderChips(items, procsOf(ioReadyQueueAt(readyLog, 0, t)));
+  fillSlots();
 }

@@ -1210,8 +1210,18 @@ footer.note {
 @media (max-width: 640px) {
   .controls-row { flex-direction: column; align-items: stretch; }
   select#algo { min-width: 0; width: 100%; }
+  /* La tabla del lote tiene que entrar en el ancho del celular (si no, la ✕ de cada fila
+     queda fuera de pantalla): las celdas pierden aire y el nombre ocupa lo que sobre. */
   table.proc-table { font-size: 0.8rem; }
+  table.proc-table th, table.proc-table td { padding-left: 0.2rem; padding-right: 0.2rem; }
+  table.proc-table th { letter-spacing: 0; }
+  table.proc-table th:first-child, table.proc-table th:last-child { width: auto !important; }
+  table.proc-table input.name-cell { width: 100%; min-width: 3rem; }
+  table.proc-table input.num-cell { width: 3.2rem; }
   .stats-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 360px) {
+  table.proc-table input.num-cell { width: 2.6rem; padding-left: 0.35rem; padding-right: 0.35rem; }
 }
 
 /* Objetivos táctiles: en touch (no mouse) varios controles quedan chicos
@@ -1226,6 +1236,9 @@ footer.note {
     padding-bottom: 0.6rem;
   }
   .stat-tile .info-btn, table.results-table .info-btn { width: 1.7rem; height: 1.7rem; }
+  /* Bloques y marcas del Gantt: se tocan para ver su descripción (infopopover.js).
+     iOS solo dispara el click en elementos no interactivos si tienen cursor: pointer. */
+  .has-tip { cursor: pointer; }
 }
 
 @media (prefers-reduced-motion: reduce) {

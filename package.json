@@ -1,0 +1,9 @@
+{
+  "name": "planificador-cpu",
+  "private": true,
+  "type": "module",
+  "description": "Simulador web de algoritmos de planificación de CPU. El sitio no necesita build ni dependencias: este archivo solo existe para correr los tests del motor.",
+  "scripts": {
+    "test": "node --test"
+  }
+}

@@ -9,6 +9,7 @@
 import { stateIntervals } from './metrics.js';
 import { flipRender, fadeSwap, resetFlip, inView, hasSeen, forgetKeys } from './flip.js';
 import { colorFor } from './colors.js';
+import { MLQ_ALGOS } from './iosim.js';
 
 function list(items) {
   return items.join(', ');
@@ -72,7 +73,7 @@ export function buildNarration({ procs, segments: rawSegments, finish, algo, qua
   let makespan = 0;
   procs.forEach((p) => { if (finish[p.id] > makespan) makespan = finish[p.id]; });
 
-  const mlq = algo === 'pri_rr' || algo === 'pri_rr_ne';
+  const mlq = MLQ_ALGOS.includes(algo);
   const cpuSegAt = (t) => segments.find((x) => x.res === 0 && x.start < t && t < x.end) || null;
   const events = {};
   const cap = (x) => x.charAt(0).toUpperCase() + x.slice(1);
@@ -372,8 +373,9 @@ function stateRow(label, nodes) {
   return row;
 }
 
-export function setNarrationData(input, seek) {
-  data = { ...buildNarration(input), procs: input.procs, resourceLabels: input.resourceLabels };
+/** @param sim la simulación en pantalla: el mismo objeto que arma gantt.js en renderSimulation */
+export function setNarrationData(sim, seek) {
+  data = { ...buildNarration(sim), procs: sim.procs, resourceLabels: sim.resourceLabels };
   resetFlip();
   onSeek = seek;
   const log = document.getElementById('narrationLog');

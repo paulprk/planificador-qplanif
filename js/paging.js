@@ -469,7 +469,10 @@ function refresh() {
 
 function setDirection(dir) {
   direction = dir;
-  document.querySelectorAll('.pg-dir-btn').forEach((b) => b.classList.toggle('active', b.dataset.dir === dir));
+  document.querySelectorAll('.pg-dir-btn').forEach((b) => {
+    b.classList.toggle('active', b.dataset.dir === dir);
+    b.setAttribute('aria-pressed', String(b.dataset.dir === dir));
+  });
   $('pgAddrLabel').textContent = dir === 'l2p' ? 'Dirección lógica' : 'Dirección física';
   $('pgAnswerLabel').textContent = dir === 'l2p' ? 'Tu dirección física (opcional)' : 'Tu dirección lógica (opcional)';
   $('pgAnswer').placeholder = dir === 'l2p' ? 'ej: 1880' : 'ej: 620';

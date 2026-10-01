@@ -4,6 +4,7 @@
  * para pasarle a los algoritmos.
  */
 import { PALETTE } from './colors.js';
+import { cleanName } from './parser.js';
 
 const procBody = document.getElementById('procBody');
 const procTable = document.getElementById('procTable');
@@ -34,8 +35,13 @@ export function addRow(data) {
   const nameInput = document.createElement('input');
   nameInput.type = 'text';
   nameInput.className = 'name-cell';
-  nameInput.value = data.name;
+  nameInput.value = cleanName(data.name);
   nameInput.id = `name-${order}`;
+  nameInput.setAttribute('aria-label', 'Nombre del proceso');
+  nameInput.addEventListener('input', () => {
+    const clean = cleanName(nameInput.value);
+    if (clean !== nameInput.value) nameInput.value = clean;
+  });
   nameWrap.appendChild(nameInput);
   tdName.appendChild(nameWrap);
 
@@ -43,12 +49,14 @@ export function addRow(data) {
   const arrInput = document.createElement('input');
   arrInput.type = 'number'; arrInput.min = '0'; arrInput.className = 'num-cell';
   arrInput.value = data.arrival; arrInput.id = `arr-${order}`;
+  arrInput.setAttribute('aria-label', 'Instante de llegada');
   tdArr.appendChild(arrInput);
 
   const tdBurst = document.createElement('td');
   const burstInput = document.createElement('input');
   burstInput.type = 'number'; burstInput.min = '1'; burstInput.className = 'num-cell';
   burstInput.value = data.burst; burstInput.id = `burst-${order}`;
+  burstInput.setAttribute('aria-label', 'Ráfaga de CPU');
   tdBurst.appendChild(burstInput);
 
   const tdPri = document.createElement('td');
@@ -56,6 +64,7 @@ export function addRow(data) {
   const priInput = document.createElement('input');
   priInput.type = 'number'; priInput.min = '0'; priInput.className = 'num-cell';
   priInput.value = data.priority; priInput.id = `pri-${order}`;
+  priInput.setAttribute('aria-label', 'Prioridad');
   tdPri.appendChild(priInput);
 
   const tdRm = document.createElement('td');

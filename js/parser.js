@@ -11,18 +11,49 @@
  * hace referencia a uno, el resultado es el mismo lote "solo CPU" de
  * siempre.
  */
+/**
+ * El formato no tiene forma de escapar comillas ni `#` (que abre un comentario),
+ * así que un nombre no puede llevarlos: se quitan para que el código vuelva a
+ * cargar el mismo lote.
+ */
+export function cleanName(raw) {
+  return String(raw ?? '').replace(/["#]/g, '');
+}
+
+/**
+ * Tareas que se pueden simular (con al menos una ráfaga de CPU de duración > 0).
+ * Devuelve `{ usable }` o `{ error }` con un mensaje para el usuario.
+ */
+export function usableTasks(tasks) {
+  if (tasks.length === 0) return { error: 'No encontré ninguna TAREA en el texto. Revisá el formato.' };
+  const usable = tasks.filter((t) => t.bursts.some((b) => b.res === 0 && b.dur > 0));
+  if (usable.length === 0) return { error: 'Ninguna tarea tiene ráfagas de CPU válidas ([CPU,n]).' };
+  const zero = usable.find((t) => t.bursts.some((b) => b.dur <= 0));
+  if (zero) return { error: `La tarea "${zero.name}" tiene una ráfaga de duración 0: todas las ráfagas deben durar al menos 1.` };
+  return { usable };
+}
+
 export function parseDefText(text) {
-  const clean = text.split('\n').map((l) => l.replace(/#.*/, '')).join('\n');
+  // Los textos entre comillas (nombres) se apartan antes de buscar las palabras clave, para que
+  // un proceso llamado "Tarea 1" o "INICIO" no se confunda con la sintaxis.
+  const strings = [];
+  const clean = text
+    .split('\n').map((l) => l.replace(/#.*/, '')).join('\n')
+    .replace(/"([^"]*)"/g, (_, str) => `"${strings.push(str) - 1}"`);
+  const unquote = (token) => {
+    const m = token.match(/^"(\d+)"$/);
+    return m ? strings[Number(m[1])] : token;
+  };
 
   const resourceNames = [];
-  const resourceDeclRe = /\bRECURSO\s+"([^"]*)"/gi;
+  const resourceDeclRe = /\bRECURSO\s+("\d+")/gi;
   let rm;
   while ((rm = resourceDeclRe.exec(clean))) {
-    resourceNames.push(rm[1]);
+    resourceNames.push(unquote(rm[1]));
   }
 
   function resourceIndex(label) {
-    const trimmed = label.trim();
+    const trimmed = unquote(label.trim()).trim();
     if (/^CPU$/i.test(trimmed)) return 0;
     const asNum = Number(trimmed);
     if (Number.isInteger(asNum) && asNum >= 1) {
@@ -41,8 +72,8 @@ export function parseDefText(text) {
   const tasks = [];
 
   blocks.forEach((block, i) => {
-    const nameM = block.match(/^\s*"([^"]*)"/);
-    const name = nameM ? nameM[1] : `P${i + 1}`;
+    const nameM = block.match(/^\s*("\d+")/);
+    const name = nameM ? unquote(nameM[1]) : `P${i + 1}`;
     const inicioM = block.match(/INICIO\s*=\s*(-?\d+)/i);
     const prioM = block.match(/PRIORIDAD\s*=\s*(-?\d+)/i);
     const arrival = inicioM ? parseInt(inicioM[1], 10) : 0;
@@ -70,7 +101,7 @@ function prioText(priority) {
 /** El inverso de parseDefText para lotes simples (una sola ráfaga de CPU por proceso). */
 export function defTextFromProcesses(procs) {
   return procs
-    .map((p) => `TAREA "${p.name}"\nINICIO=${p.arrival}${prioText(p.priority)} [CPU,${p.burst}]`)
+    .map((p) => `TAREA "${cleanName(p.name)}"\nINICIO=${p.arrival}${prioText(p.priority)} [CPU,${p.burst}]`)
     .join('\n\n');
 }
 
@@ -81,7 +112,7 @@ export function defTextFromIoTasks(tasks, resourceNames) {
     const brackets = t.bursts
       .map((b) => (b.res === 0 ? `[CPU,${b.dur}]` : `[${b.res},${b.dur}]`))
       .join(' ');
-    return `TAREA "${t.name}"\nINICIO=${t.arrival}${prioText(t.priority)} ${brackets}`;
+    return `TAREA "${cleanName(t.name)}"\nINICIO=${t.arrival}${prioText(t.priority)} ${brackets}`;
   });
   const resBlock = resLines.join('\n');
   return [resBlock, ...taskLines].filter(Boolean).join('\n\n');

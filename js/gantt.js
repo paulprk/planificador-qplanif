@@ -3,11 +3,14 @@
  * la leyenda, y la reproducción animada instante a instante.
  *
  * API pública:
- *   initPlayback()                      — engancha los controles (botones, slider, teclado, toggle de vista)
- *   renderSimulation({ procs, segments, finish, labelText, showPriority, quantumText })
- *                                        — pinta el resultado de una simulación nueva y arranca la reproducción
+ *   initPlayback()            — engancha los controles (botones, slider, teclado, toggle de vista)
+ *   renderSimulation(result)  — pinta el resultado de una simulación nueva y arranca la reproducción
+ *
+ * El resultado en pantalla vive en un único objeto `sim`, que también reciben
+ * la cola de listos y la narración: los tres módulos leen el mismo.
  */
 import { PALETTE, colorFor } from './colors.js';
+import { PRIORITY_ALGOS } from './iosim.js';
 import { setFlipEnabled } from './flip.js';
 import { setReadyQueueData, renderReadyQueueAt } from './readyqueue.js';
 import { stateIntervals } from './metrics.js';
@@ -43,15 +46,8 @@ let gPlayheadOffset = 0;
 let viewMode = 'lanes';
 let userUnitPx = null; // null = ajuste automático al ancho disponible
 
-let lastProcs = null;
-let lastSegments = [];
-let lastShowPriority = false;
-let lastQuantumText = null;
-let lastAgingText = null;
-let lastFinish = {};
-let lastSwitches = [];
+let sim = null; // la simulación en pantalla (ver renderSimulation)
 let markerEls = [];
-let lastResourceLabels = null; // null = modo simple (lanes = procesos); array = modo E/S (lanes = recursos)
 
 let currentInstant = 0;
 let maxInstant = 0;
@@ -88,9 +84,9 @@ function updateZoomBtn() {
 }
 
 function rebuildKeepingInstant() {
-  if (!lastProcs) return;
+  if (!sim) return;
   setNoAnim(true);
-  buildGantt(lastProcs, lastSegments, lastShowPriority, lastQuantumText, lastResourceLabels);
+  buildGantt();
   setInstant(currentInstant);
   requestAnimationFrame(() => setNoAnim(false));
 }
@@ -102,6 +98,7 @@ function updatePlayBtn() {
 function setInstant(t) {
   currentInstant = Math.max(0, Math.min(maxInstant, t));
   instantSliderEl.value = currentInstant;
+  instantSliderEl.setAttribute('aria-valuetext', `Instante ${currentInstant} de ${maxInstant}`);
   instantLabelEl.textContent = `Instante: ${currentInstant} / ${maxInstant}`;
   updateReveal(currentInstant);
   renderNarrationAt(currentInstant);
@@ -127,6 +124,18 @@ function pausePlayback() {
   updatePlayBtn();
 }
 
+/**
+ * La descripción de un bloque o marca va en `title` (se ve al pasar el mouse) y en
+ * `aria-label` (lectores de pantalla). En pantallas táctiles, donde `title` no
+ * aparece, infopopover.js la muestra al tocar el elemento (clase `has-tip`).
+ */
+function describe(el, text) {
+  el.title = text;
+  el.setAttribute('role', 'img');
+  el.setAttribute('aria-label', text);
+  el.classList.add('has-tip');
+}
+
 function makeSeg(procs, s, container, resourceLabels) {
   const div = document.createElement('div');
   const colorKey = colorFor(procs, s.id);
@@ -139,7 +148,7 @@ function makeSeg(procs, s, container, resourceLabels) {
   const name = proc ? proc.name : s.id;
   const resTag = resourceLabels && s.res != null ? ` (${resourceLabels[s.res]})` : '';
   div.dataset.label = name + resTag;
-  div.title = `${name}${resTag}: ${s.start} → ${s.end}`;
+  describe(div, `${name}${resTag}: ${s.start} → ${s.end}`);
   container.appendChild(div);
   segEls.push({ el: div, seg: s });
 }
@@ -152,12 +161,13 @@ function makeSwitchSeg(procs, sw, container) {
   div.style.width = '0px';
   div.dataset.label = 'SO';
   const n = sw.end - sw.start;
-  div.title = `Cambio de contexto ${nameOf(sw.from)} → ${nameOf(sw.to)}: t=${sw.start} a t=${sw.end} (${n} ${n === 1 ? 'unidad' : 'unidades'}). ${nameOf(sw.to)} sigue en la cola de listos hasta que termine.`;
+  describe(div, `Cambio de contexto ${nameOf(sw.from)} → ${nameOf(sw.to)}: t=${sw.start} a t=${sw.end} (${n} ${n === 1 ? 'unidad' : 'unidades'}). ${nameOf(sw.to)} sigue en la cola de listos hasta que termine.`);
   container.appendChild(div);
   segEls.push({ el: div, seg: { start: sw.start, end: sw.end } });
 }
 
-function buildLegend(procs, showPriority, quantumText, isIo) {
+function buildLegend() {
+  const { procs, showPriority, quantumText, agingText, ioMode: isIo } = sim;
   legendEl.innerHTML = '';
   procs.forEach((p, i) => {
     const item = document.createElement('div');
@@ -182,12 +192,12 @@ function buildLegend(procs, showPriority, quantumText, isIo) {
     qItem.textContent = `Quantum = ${quantumText}`;
     legendEl.appendChild(qItem);
   }
-  if (lastAgingText != null) {
+  if (agingText != null) {
     const aItem = document.createElement('div');
     aItem.className = 'legend-item';
     aItem.style.fontWeight = '700';
     aItem.style.color = 'var(--ink)';
-    aItem.textContent = `Envejecimiento = cada ${lastAgingText} ${lastAgingText === 1 ? 'unidad' : 'unidades'}`;
+    aItem.textContent = `Envejecimiento = cada ${agingText} ${agingText === 1 ? 'unidad' : 'unidades'}`;
     aItem.title = 'Cada tantas unidades esperando en la cola de listos, el proceso mejora su prioridad (en colas multinivel, sube a la cola de arriba). Al tomar la CPU vuelve a la original.';
     legendEl.appendChild(aItem);
   }
@@ -200,7 +210,7 @@ function buildLegend(procs, showPriority, quantumText, isIo) {
     ['cpu', 'usando la CPU'],
     ...(isIo ? [['io', 'usando un dispositivo de E/S'], ['wait-dev', 'esperando que se libere el dispositivo']] : []),
     ['wait-cpu', 'listo: esperando la CPU'],
-    ...(lastSwitches.length ? [['switch', 'cambio de contexto (el SO carga al próximo)']] : [])
+    ...(sim.switches.length ? [['switch', 'cambio de contexto (el SO carga al próximo)']] : [])
   ];
   states.forEach(([kind, text]) => {
     const item = document.createElement('div');
@@ -222,7 +232,8 @@ function buildLegend(procs, showPriority, quantumText, isIo) {
   });
 }
 
-function buildSingleTrack(procs, segments, maxEnd, unitPx, resourceLabels) {
+function buildSingleTrack(maxEnd, unitPx) {
+  const { procs, segments, resourceLabels } = sim;
   ganttTrack.innerHTML = '';
   ganttAxis.innerHTML = '';
   ganttTrack.style.setProperty('--unit-px', `${unitPx}px`);
@@ -231,7 +242,7 @@ function buildSingleTrack(procs, segments, maxEnd, unitPx, resourceLabels) {
   ganttAxis.style.width = `${totalWidth}px`;
 
   segments.forEach((s) => makeSeg(procs, s, ganttTrack, resourceLabels));
-  lastSwitches.forEach((sw) => makeSwitchSeg(procs, sw, ganttTrack));
+  sim.switches.forEach((sw) => makeSwitchSeg(procs, sw, ganttTrack));
 
   playheadEl = document.createElement('div');
   playheadEl.className = 'playhead';
@@ -260,7 +271,7 @@ function makeStateSeg(container, colorKey, iv, resourceLabels, procName) {
   div.style.width = '0px';
   const dev = resourceLabels && iv.res > 0 ? ` ${resourceLabels[iv.res]}` : '';
   div.dataset.label = iv.kind === 'cpu' ? 'CPU' : '';
-  div.title = `${procName} ${STATE_TEXT[iv.kind]}${iv.kind === 'io' || iv.kind === 'wait-dev' ? dev : ''} desde t=${iv.start} hasta t=${iv.end} (${iv.end - iv.start} ${iv.end - iv.start === 1 ? 'unidad' : 'unidades'})`;
+  describe(div, `${procName} ${STATE_TEXT[iv.kind]}${iv.kind === 'io' || iv.kind === 'wait-dev' ? dev : ''} desde t=${iv.start} hasta t=${iv.end} (${iv.end - iv.start} ${iv.end - iv.start === 1 ? 'unidad' : 'unidades'})`);
   container.appendChild(div);
   segEls.push({ el: div, seg: iv });
 }
@@ -270,12 +281,13 @@ function addMarker(container, colorKey, cls, at, title) {
   m.className = `mark ${cls}`;
   m.style.setProperty('--c', `var(--${colorKey})`);
   m.style.left = `${at * gUnitPx}px`;
-  m.title = title;
+  describe(m, title);
   container.appendChild(m);
   markerEls.push({ el: m, at });
 }
 
-function buildLanes(procs, segments, maxEnd, unitPx, resourceLabels) {
+function buildLanes(maxEnd, unitPx) {
+  const { procs, segments, resourceLabels, switches, finish } = sim;
   lanesLabels.innerHTML = '';
   lanesAxis.innerHTML = '';
   lanesBody.innerHTML = '';
@@ -318,7 +330,7 @@ function buildLanes(procs, segments, maxEnd, unitPx, resourceLabels) {
     resourceLabels.forEach((name, i) => {
       const track = addLane(name, null);
       segments.filter((s) => s.res === i).forEach((s) => makeSeg(procs, s, track));
-      if (i === 0) lastSwitches.forEach((sw) => makeSwitchSeg(procs, sw, track));
+      if (i === 0) switches.forEach((sw) => makeSwitchSeg(procs, sw, track));
     });
     const gapLabel = document.createElement('div');
     gapLabel.className = 'lane-gap';
@@ -328,9 +340,9 @@ function buildLanes(procs, segments, maxEnd, unitPx, resourceLabels) {
     lanesBody.appendChild(gapTrack);
   }
 
-  if (!resourceLabels && lastSwitches.length) {
+  if (!resourceLabels && switches.length) {
     const track = addLane('Cambio de contexto', null);
-    lastSwitches.forEach((sw) => makeSwitchSeg(procs, sw, track));
+    switches.forEach((sw) => makeSwitchSeg(procs, sw, track));
   }
 
   procs.forEach((p, i) => {
@@ -338,7 +350,7 @@ function buildLanes(procs, segments, maxEnd, unitPx, resourceLabels) {
     const colorKey = PALETTE[i % PALETTE.length];
     stateIntervals(p, segments).forEach((iv) => makeStateSeg(track, colorKey, iv, resourceLabels, p.name));
     addMarker(track, colorKey, 'mark-arr', p.arrival, `${p.name} llega en t=${p.arrival}`);
-    if (lastFinish[p.id] != null) addMarker(track, colorKey, 'mark-end', lastFinish[p.id], `${p.name} termina en t=${lastFinish[p.id]}`);
+    if (finish[p.id] != null) addMarker(track, colorKey, 'mark-end', finish[p.id], `${p.name} termina en t=${finish[p.id]}`);
   });
 
   playheadEl = document.createElement('div');
@@ -349,27 +361,23 @@ function buildLanes(procs, segments, maxEnd, unitPx, resourceLabels) {
   gPlayheadOffset = 0;
 }
 
-function buildGantt(procs, segments, showPriority, quantumText, resourceLabels) {
+function buildGantt() {
   segEls = [];
-  let maxEnd = 0;
-  segments.forEach((s) => { if (s.end > maxEnd) maxEnd = s.end; });
-  if (maxEnd === 0) maxEnd = 1;
+  const maxEnd = maxInstant || 1;
   gMaxEnd = maxEnd;
   gUnitPx = userUnitPx != null ? userUnitPx : autoFitUnitPx(maxEnd);
 
-  if (viewMode === 'lanes') {
-    buildLanes(procs, segments, maxEnd, gUnitPx, resourceLabels);
-  } else {
-    buildSingleTrack(procs, segments, maxEnd, gUnitPx, resourceLabels);
-  }
-  buildLegend(procs, showPriority, quantumText, Boolean(resourceLabels));
+  if (viewMode === 'lanes') buildLanes(maxEnd, gUnitPx);
+  else buildSingleTrack(maxEnd, gUnitPx);
+  buildLegend();
 
   const lanesBtn = document.querySelector('.view-btn[data-view="lanes"]');
-  if (lanesBtn) lanesBtn.textContent = resourceLabels ? 'Recursos y procesos' : 'Vista por proceso';
+  if (lanesBtn) lanesBtn.textContent = sim.ioMode ? 'Recursos y procesos' : 'Vista por proceso';
 }
 
 function updateReveal(revealUpTo) {
   segEls.forEach(({ seg: s, el: div }) => {
+    div.setAttribute('aria-hidden', String(s.start >= revealUpTo));
     if (s.start >= revealUpTo) {
       div.style.width = '0px';
       div.textContent = '';
@@ -380,7 +388,10 @@ function updateReveal(revealUpTo) {
     div.style.width = `${w}px`;
     div.textContent = w >= gUnitPx - 2 ? div.dataset.label : '';
   });
-  markerEls.forEach(({ el, at }) => { el.style.opacity = at <= revealUpTo ? '1' : '0'; });
+  markerEls.forEach(({ el, at }) => {
+    el.style.opacity = at <= revealUpTo ? '1' : '0';
+    el.setAttribute('aria-hidden', String(at > revealUpTo));
+  });
   if (playheadEl) {
     playheadEl.style.left = `${gPlayheadOffset + revealUpTo * gUnitPx}px`;
     playheadEl.style.opacity = (revealUpTo > 0 && revealUpTo < gMaxEnd) ? '1' : '0';
@@ -393,51 +404,64 @@ function updateReveal(revealUpTo) {
  * CPU y otra en un recurso al mismo tiempo, y esa vista las mete en la misma
  * fila — los segmentos se superponen visualmente. Se oculta el botón ahí.
  */
-function updateViewAvailability(resourceLabels) {
+function updateViewAvailability() {
   const singleBtn = document.querySelector('.view-btn[data-view="single"]');
   if (!singleBtn) return;
-  const isIo = Boolean(resourceLabels);
-  singleBtn.hidden = isIo;
-  if (isIo && viewMode === 'single') {
-    viewMode = 'lanes';
-    document.querySelectorAll('.view-btn').forEach((b) => b.classList.toggle('active', b.dataset.view === 'lanes'));
-    singleWrap.hidden = true;
-    lanesWrap.hidden = false;
-  }
+  singleBtn.hidden = sim.ioMode;
+  if (sim.ioMode && viewMode === 'single') setViewMode('lanes');
 }
 
-/** Pinta un nuevo resultado de simulación y arranca la reproducción desde el instante 0. */
-export function renderSimulation({ procs, segments, finish, labelText, showPriority, quantumText, algo, readyLog, vrrLog, resourceLabels, resourceAlgo, switches, agingLog, quantumTrace, aging = 0 }) {
-  pausePlayback();
-  lastSwitches = switches || [];
-  lastProcs = procs;
-  lastSegments = segments;
-  lastShowPriority = showPriority;
-  lastQuantumText = quantumText;
-  lastAgingText = aging > 0 && ['pri', 'pri_exp', 'pri_rr', 'pri_rr_ne'].includes(algo) ? aging : null;
-  lastFinish = finish || {};
-  lastResourceLabels = resourceLabels || null;
-  updateViewAvailability(lastResourceLabels);
+function setViewMode(view) {
+  viewMode = view;
+  document.querySelectorAll('.view-btn').forEach((b) => {
+    const on = b.dataset.view === view;
+    b.classList.toggle('active', on);
+    b.setAttribute('aria-pressed', String(on));
+  });
+  singleWrap.hidden = viewMode !== 'single';
+  lanesWrap.hidden = viewMode !== 'lanes';
+}
 
-  renderGuide({ procs, segments, resourceLabels: resourceLabels || null, algo, quantumText, resourceAlgo, hasSwitches: lastSwitches.length > 0 });
-  setReadyQueueData({ algo, procs, segments, finish, readyLog, ioMode: Boolean(resourceLabels), resourceLabels, vrrLog, quantum: quantumText ? parseInt(quantumText, 10) : null, aging });
-  setNarrationData({
-    procs, segments, finish, algo,
-    quantum: quantumText ? parseInt(quantumText, 10) : null,
-    resourceAlgo: resourceLabels ? resourceAlgo : null,
-    vrrLog: vrrLog || null,
-    switches: lastSwitches,
-    agingLog: agingLog || [],
-    quantumTrace: quantumTrace || null,
-    resourceLabels: resourceLabels || null
-  }, (t) => { pausePlayback(); setInstant(t); });
-  algoLabelEl.textContent = labelText;
+/**
+ * Pinta un nuevo resultado de simulación y arranca la reproducción desde el instante 0.
+ *
+ * @param result lo que devuelve el motor (`segments`, `finish`, `readyLog`, `switches`, `agingLog`,
+ *   `quantumTrace`, `vrrLog`) más `procs`, `algo`, `labelText`, `showPriority`, `quantumText`
+ *   (null si el algoritmo no usa quantum), `aging` y, en modo E/S, `resourceLabels`
+ *   (['CPU', 'R1', ...]) y `resourceAlgo`.
+ */
+export function renderSimulation(result) {
+  pausePlayback();
+  const resourceLabels = result.resourceLabels || null;
+  const aging = result.aging || 0;
+  sim = {
+    ...result,
+    finish: result.finish || {},
+    switches: result.switches || [],
+    agingLog: result.agingLog || [],
+    quantumTrace: result.quantumTrace || null,
+    vrrLog: result.vrrLog || null,
+    readyLog: result.readyLog ?? null,
+    resourceLabels, // null = modo simple (lanes = procesos); array = modo E/S (lanes = recursos)
+    resourceAlgo: resourceLabels ? result.resourceAlgo : null,
+    ioMode: Boolean(resourceLabels),
+    quantum: result.quantumText ? parseInt(result.quantumText, 10) : null,
+    aging,
+    agingText: aging > 0 && PRIORITY_ALGOS.includes(result.algo) ? aging : null,
+    hasSwitches: Boolean(result.switches && result.switches.length)
+  };
+  updateViewAvailability();
+
+  renderGuide(sim);
+  setReadyQueueData(sim);
+  setNarrationData(sim, (t) => { pausePlayback(); setInstant(t); });
+  algoLabelEl.textContent = sim.labelText;
 
   maxInstant = 0;
-  segments.forEach((s) => { if (s.end > maxInstant) maxInstant = s.end; });
+  sim.segments.forEach((s) => { if (s.end > maxInstant) maxInstant = s.end; });
   instantSliderEl.max = maxInstant;
 
-  buildGantt(procs, segments, showPriority, quantumText, lastResourceLabels);
+  buildGantt();
   setNoAnim(true);
   setInstant(0);
   requestAnimationFrame(() => setNoAnim(false));
@@ -491,10 +515,7 @@ export function initPlayback() {
   document.querySelectorAll('.view-btn').forEach((btn) => {
     btn.addEventListener('click', () => {
       if (btn.dataset.view === viewMode) return;
-      viewMode = btn.dataset.view;
-      document.querySelectorAll('.view-btn').forEach((b) => b.classList.toggle('active', b === btn));
-      singleWrap.hidden = viewMode !== 'single';
-      lanesWrap.hidden = viewMode !== 'lanes';
+      setViewMode(btn.dataset.view);
       rebuildKeepingInstant();
     });
   });

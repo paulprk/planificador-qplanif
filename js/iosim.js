@@ -5,6 +5,12 @@
  * propia cola con su propia política de selección (para recursos, solo
  * FCFS/SJF/Prioridades no-expulsiva, igual que el original).
  */
+
+/** Familias de políticas de CPU: las usa el motor y las reutiliza la interfaz. */
+export const MLQ_ALGOS = ['pri_rr', 'pri_rr_ne'];
+export const QUANTUM_ALGOS = ['rr', 'vrr', ...MLQ_ALGOS];
+export const PRIORITY_ALGOS = ['pri', 'pri_exp', ...MLQ_ALGOS];
+
 /**
  * Clave de orden de una cola, igual que las colas del qplanif original
  * (ColasCls.hh): la métrica de la política, después el instante en que la
@@ -33,7 +39,11 @@ function compareKeys(ka, kb) {
   return 0;
 }
 
-export function simulateWithResources({ tasks, resourceNames, cpuAlgo, resourceAlgo, quantum, contextSwitch = 0, aging = 0 }) {
+/**
+ * Devuelve, entre otras cosas, `completed` y `total`: si `completed < total` la simulación se
+ * cortó sin terminar (lote inválido, o más largo que `maxTime`) y el resto del resultado no sirve.
+ */
+export function simulateWithResources({ tasks, resourceNames, cpuAlgo, resourceAlgo, quantum, contextSwitch = 0, aging = 0, maxTime = Infinity }) {
   const numResources = resourceNames.length;
   const state = tasks.map((t) => ({
     ...t,
@@ -52,14 +62,14 @@ export function simulateWithResources({ tasks, resourceNames, cpuAlgo, resourceA
   const priorityQueues = { 0: {} };
   const isVrr = cpuAlgo === 'vrr';
   // Colas multinivel: una cola RR por prioridad; entre colas manda la prioridad (pri_rr con apropiación, pri_rr_ne sin).
-  const isMlq = cpuAlgo === 'pri_rr' || cpuAlgo === 'pri_rr_ne';
+  const isMlq = MLQ_ALGOS.includes(cpuAlgo);
   const mlqPreempt = cpuAlgo === 'pri_rr';
   const topLevel = state.length ? Math.min(...state.map((k) => k.priority)) : 0;
-  const usesQuantum = cpuAlgo === 'rr' || isMlq || isVrr;
+  const usesQuantum = QUANTUM_ALGOS.includes(cpuAlgo);
   const aux = [];
   const vrrLog = { aux: [], dispatch: [] };
   const quantumTrace = [];
-  const agingOn = aging > 0 && (cpuAlgo === 'pri' || cpuAlgo === 'pri_exp' || isMlq);
+  const agingOn = aging > 0 && PRIORITY_ALGOS.includes(cpuAlgo);
   const agingLog = [];
   const switches = [];
   let switching = null;
@@ -147,9 +157,11 @@ export function simulateWithResources({ tasks, resourceNames, cpuAlgo, resourceA
   }
   function startSeg(res, task, t) { openSeg[res] = { id: task.id, start: t }; }
 
+  // Tope de iteraciones, por si un lote inválido no puede terminar. Cada unidad de trabajo puede
+  // venir precedida de un cambio de contexto completo, así que el costo entra en la cuenta.
   const totalWork = state.reduce((s, t) => s + t.bursts.reduce((a, b) => a + b.dur, 0), 0);
   const maxArrival = state.length ? Math.max(...state.map((t) => t.arrival)) : 0;
-  const limit = totalWork + maxArrival + numResources * 20 + 200;
+  const limit = totalWork * (1 + contextSwitch) + maxArrival + numResources * 20 + 200;
 
   function processArrivalsAt(time) {
     while (arrivalPtr < arrivalsSorted.length && arrivalsSorted[arrivalPtr].arrival <= time) {
@@ -212,7 +224,7 @@ export function simulateWithResources({ tasks, resourceNames, cpuAlgo, resourceA
 
   processArrivalsAt(t); // arribos en t=0, antes de la primera decisión
 
-  while (completed < state.length && guard++ < limit * 4 + 2000) {
+  while (completed < state.length && t <= maxTime && guard++ < limit * 4 + 2000) {
     let justLoaded = false;
     if (switching && switching.left === 0) {
       const k = switching.task;

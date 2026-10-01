@@ -4,6 +4,7 @@
  * `buildRows` es puro (sin DOM) para poder auditarlo con Node.
  */
 import { computeMetrics } from './metrics.js';
+import { QUANTUM_ALGOS } from './iosim.js';
 
 const SHORT_NAMES = {
   fcfs: 'FCFS',
@@ -39,18 +40,18 @@ export function contextSwitches(segments) {
 
 /**
  * @param quantums lista de quantums a probar en RR y Prioridades+RR
- * @param runOne (algo, quantum) => { procs, segments, finish } (cada modo sabe correr el lote)
+ * @param runOne (algo, quantum) => { procs, segments, finish, incomplete? } (cada modo sabe correr
+ *        el lote; una corrida `incomplete` no llegó a terminar y se deja afuera de la tabla)
  * @param numResources cantidad de dispositivos (0 en modo simple)
  */
 export function buildRows({ quantums, runOne, numResources, algos = ORDER.filter((a) => a !== 'pri_rr_ne') }) {
   const configs = [];
   algos.forEach((algo) => {
     if (algo === 'vrr' && !numResources) return;
-    if (algo === 'rr' || algo === 'vrr' || algo === 'pri_rr' || algo === 'pri_rr_ne') quantums.forEach((q) => configs.push({ algo, quantum: q }));
+    if (QUANTUM_ALGOS.includes(algo)) quantums.forEach((q) => configs.push({ algo, quantum: q }));
     else configs.push({ algo, quantum: null });
   });
-  return configs.map((cfg) => {
-    const r = runOne(cfg.algo, cfg.quantum);
+  return configs.map((cfg) => ({ cfg, r: runOne(cfg.algo, cfg.quantum) })).filter(({ r }) => !r.incomplete).map(({ cfg, r }) => {
     const m = computeMetrics({ procs: r.procs, segments: r.segments, finish: r.finish, numResources });
     return {
       ...cfg,

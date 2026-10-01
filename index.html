@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Planificador de CPU</title>
   <meta name="description" content="Simulador de algoritmos de planificación de CPU (FCFS, SJF, SRTF, Round Robin, Prioridades) con diagrama de Gantt animado.">
-  <link rel="stylesheet" href="css/styles.css?v=27">
+  <link rel="stylesheet" href="css/styles.css">
   <script>
     try {
       var savedTheme = localStorage.getItem('planificador-cpu-theme');
@@ -86,10 +86,10 @@
         <span class="mode-toggle-label">Modo</span>
         <div class="mode-toggle" role="group" aria-label="Modo del lote">
           <span class="mode-toggle-indicator" id="modeIndicator" aria-hidden="true"></span>
-          <button type="button" class="mode-btn active" data-mode="simple">Modo simple</button>
-          <button type="button" class="mode-btn" data-mode="io">Modo E/S</button>
-          <button type="button" class="mode-btn" data-mode="mlq">Colas multinivel</button>
-          <button type="button" class="mode-btn" data-mode="paging">Paginación</button>
+          <button type="button" class="mode-btn active" data-mode="simple" aria-pressed="true">Modo simple</button>
+          <button type="button" class="mode-btn" data-mode="io" aria-pressed="false">Modo E/S</button>
+          <button type="button" class="mode-btn" data-mode="mlq" aria-pressed="false">Colas multinivel</button>
+          <button type="button" class="mode-btn" data-mode="paging" aria-pressed="false">Paginación</button>
         </div>
       </div>
       <div class="kbd-hint" title="Funcionan en todos los modos: en el planificador mueven el instante; en Paginación, los pasos de la traducción.">
@@ -139,8 +139,8 @@
       <h2><span class="num">02</span> Memoria y traducción de direcciones</h2>
       <div class="pg-translator">
         <div class="pg-dir" role="group" aria-label="Sentido de la traducción">
-          <button type="button" class="pg-dir-btn active" data-dir="l2p">Lógica → física</button>
-          <button type="button" class="pg-dir-btn" data-dir="p2l">Física → lógica</button>
+          <button type="button" class="pg-dir-btn active" data-dir="l2p" aria-pressed="true">Lógica → física</button>
+          <button type="button" class="pg-dir-btn" data-dir="p2l" aria-pressed="false">Física → lógica</button>
         </div>
         <div class="field">
           <label for="pgAddr" id="pgAddrLabel">Dirección lógica</label>
@@ -209,7 +209,7 @@
             <button id="codeBigger" type="button" title="Agrandar la letra" aria-label="Agrandar la letra">A+</button>
           </span>
         </div>
-        <p class="code-msg" id="codeMsg"></p>
+        <p class="code-msg" id="codeMsg" role="status"></p>
       </div>
     </section>
 
@@ -253,7 +253,7 @@
         <button class="primary" id="simBtn" type="button" style="height:2.15rem">Simular</button>
       </div>
       <p style="margin:0;font-size:0.78rem;color:var(--ink-soft)">Prioridad: menor número = mayor prioridad. Se ignora en FCFS, SJF y SRTF.</p>
-      <div class="error-msg" id="errMsg"></div>
+      <div class="error-msg" id="errMsg" role="alert"></div>
     </section>
 
     <section class="panel sched-only" id="ganttPanel">
@@ -263,7 +263,7 @@
         <button id="stepBack" type="button" title="Retroceder 1 instante">◀</button>
         <button id="playPause" type="button" class="primary play-btn">▶ Reproducir</button>
         <button id="stepFwd" type="button" title="Avanzar 1 instante">▶|</button>
-        <input type="range" id="instantSlider" min="0" max="0" value="0">
+        <input type="range" id="instantSlider" min="0" max="0" value="0" aria-label="Instante de la simulación">
         <span class="instant-label" id="instantLabel">Instante: 0</span>
         <label class="speed-field" for="speedSel">Velocidad
           <select id="speedSel">
@@ -278,8 +278,8 @@
       <p class="algo-label" id="algoLabel"></p>
       <div class="gantt-toolbar">
         <div class="view-toggle" role="group" aria-label="Vista del diagrama">
-          <button type="button" class="view-btn active" data-view="lanes">Vista por proceso</button>
-          <button type="button" class="view-btn" data-view="single">Vista única</button>
+          <button type="button" class="view-btn active" data-view="lanes" aria-pressed="true">Vista por proceso</button>
+          <button type="button" class="view-btn" data-view="single" aria-pressed="false">Vista única</button>
         </div>
         <div class="zoom-toggle" role="group" aria-label="Zoom del diagrama">
           <button type="button" id="zoomOut" title="Alejar">－</button>

@@ -98,7 +98,7 @@ export function renderGuide({ procs, segments, resourceLabels, algo, quantumText
   }
   list.appendChild(swatchRow('wait-cpu', 'Línea de puntos', 'está listo pero la CPU la tiene otro: espera su turno.'));
   if (hasSwitches) list.appendChild(swatchRow('switch', 'Rayado gris', 'cambio de contexto: el SO carga al próximo proceso y la CPU no ejecuta a nadie. Ese proceso cuenta como listo mientras tanto.'));
-  list.appendChild(el('p', null, '▲ marca cuándo llega el proceso y ▼ cuándo termina. La línea vertical es el instante actual: al pasar el mouse por una barra ves de cuándo a cuándo dura.'));
+  list.appendChild(el('p', null, '▲ marca cuándo llega el proceso y ▼ cuándo termina. La línea vertical es el instante actual: al pasar el mouse por una barra (o al tocarla, en el celular) ves de cuándo a cuándo dura.'));
   read.appendChild(list);
   host.appendChild(read);
 }

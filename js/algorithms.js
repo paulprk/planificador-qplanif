@@ -3,7 +3,9 @@
  * El modo simple usa el mismo motor que el modo E/S (iosim.js), con tareas de
  * una sola ráfaga de CPU y sin dispositivos, para que ambos modos coincidan.
  */
-import { simulateWithResources } from './iosim.js';
+import { simulateWithResources, MLQ_ALGOS, QUANTUM_ALGOS, PRIORITY_ALGOS } from './iosim.js';
+
+export { MLQ_ALGOS, QUANTUM_ALGOS, PRIORITY_ALGOS };
 
 export const ALGO_NAMES = {
   fcfs: 'FCFS — First Come First Served',
@@ -17,16 +19,14 @@ export const ALGO_NAMES = {
   pri_rr_ne: 'Colas multinivel sin apropiación'
 };
 
-export const PRIORITY_ALGOS = ['pri', 'pri_exp', 'pri_rr', 'pri_rr_ne'];
-
 /**
  * Corre el algoritmo pedido sobre procesos `{ id, order, name, arrival, burst, priority }`
- * y devuelve `{ ok, result }` (result = `{ segments, finish, readyLog, switches, agingLog }`)
- * o `{ ok: false, error }` si el quantum es inválido.
+ * y devuelve `{ ok, result }` (result = `{ segments, finish, readyLog, switches, agingLog,
+ * completed, total }`) o `{ ok: false, error }` si el quantum es inválido.
  */
-export function runAlgorithm(algo, procs, quantum, { contextSwitch = 0, aging = 0 } = {}) {
+export function runAlgorithm(algo, procs, quantum, { contextSwitch = 0, aging = 0, maxTime } = {}) {
   if (!ALGO_NAMES[algo]) return { ok: false, error: `Algoritmo desconocido: ${algo}` };
-  if ((algo === 'rr' || algo === 'pri_rr' || algo === 'pri_rr_ne') && (isNaN(quantum) || quantum <= 0)) {
+  if (QUANTUM_ALGOS.includes(algo) && (isNaN(quantum) || quantum <= 0)) {
     return { ok: false, error: 'El quantum debe ser un número mayor a 0.' };
   }
   const tasks = procs.map((p) => ({
@@ -34,7 +34,7 @@ export function runAlgorithm(algo, procs, quantum, { contextSwitch = 0, aging = 
     bursts: [{ res: 0, dur: p.burst }]
   }));
   const result = simulateWithResources({
-    tasks, resourceNames: [], cpuAlgo: algo, resourceAlgo: 'fcfs', quantum, contextSwitch, aging
+    tasks, resourceNames: [], cpuAlgo: algo, resourceAlgo: 'fcfs', quantum, contextSwitch, aging, maxTime
   });
   return { ok: true, result };
 }
